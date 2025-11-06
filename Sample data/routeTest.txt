@@ -1,0 +1,268 @@
+───────────────────────────────────────────────
+User Routes :
+───────────────────────────────────────────────
+
+GET    http://localhost:8080/api/users/  
+       -- Get all users
+
+GET    http://localhost:8080/api/users/68ea124f86012f2d8b658ce9  
+       -- Get user by ID
+
+GET    http://localhost:8080/api/users/role/admin  
+       -- Get users by role
+
+POST   http://localhost:8080/api/users/  
+       -- Create user with any role  
+Body:
+{
+  "name": "Manager",
+  "email": "Manager@example.com",
+  "password": "Password123!",
+  "role": "manager"
+}
+
+PUT   http://localhost:8080/api/users/68ea2c7d453989e32b83c9d1 
+      --- Update user and hash the password
+
+
+DELETE  http://localhost:8080/api/users/68ea0d9378271c82f4665d15 
+        --- Delete user by ID
+
+        
+───────────────────────────────────────────────
+Packages Routes :
+───────────────────────────────────────────────
+
+GET    http://localhost:8080/api/packages  
+       -- Get all packages
+
+GET    http://localhost:8080/api/packages/68ea0d9378271c82f4665d22  
+       -- Get package by ID
+
+POST   http://localhost:8080/api/packages/  
+       -- Create a new package  
+Body:
+{
+  "title": "Adventure Package",
+  "slug": "adventure-package",
+  "description": "Experience the thrill with our Adventure Package including trekking, rafting, and camping.",
+  "price": 299,
+  "duration": "7 Days / 6 Nights",
+  "location": "Himachal Pradesh, India",
+  "images": [
+    "https://example.com/images/adventure1.jpg",
+    "https://example.com/images/adventure2.jpg"
+  ],
+  "highlights": [
+    "Trekking in mountains",
+    "River rafting experience",
+    "Night camping under stars"
+  ],
+  "inclusions": [
+    "Accommodation",
+    "Meals",
+    "Transport to all activities"
+  ],
+  "exclusions": [
+    "Personal expenses",
+    "Travel insurance",
+    "Flight tickets"
+  ],
+  "isActive": true
+}
+
+PUT    http://localhost:8080/api/packages/68ea25b3cce8001f14be7cc5  
+       -- Update a package by ID  
+Body:
+{
+  "title": "VIP Package",
+  "slug": "adventure-package",
+  "description": "Experience the thrill with our Adventure Package including trekking, rafting, and camping.",
+  "price": 299,
+  "duration": "7 Days / 6 Nights",
+  "location": "Himachal Pradesh, India",
+  "images": [
+    "https://example.com/images/adventure1.jpg",
+    "https://example.com/images/adventure2.jpg"
+  ],
+  "highlights": [
+    "Trekking in mountains",
+    "River rafting experience",
+    "Night camping under stars"
+  ],
+  "inclusions": [
+    "Accommodation",
+    "Meals",
+    "Transport to all activities"
+  ],
+  "exclusions": [
+    "Personal expenses",
+    "Travel insurance",
+    "Flight tickets"
+  ],
+  "isActive": true
+}
+
+DELETE http://localhost:8080/api/packages/68ea25b3cce8001f14be7cc5  
+       -- Delete an existing package
+
+
+───────────────────────────────────────────────
+Auth Routes :
+───────────────────────────────────────────────
+
+POST   http://localhost:8080/api/users/  
+       -- Register a new user and set token in cookies  
+Body:
+{
+  "name": "Manager",
+  "email": "Manager@example.com",
+  "password": "Password123!",
+  "role": "manager"
+}
+
+POST   http://localhost:8080/api/auth/login  
+       -- Authenticate user and then set token in cookies  
+Body:
+{
+  "email": "josh@example.com",
+  "password": "Password123!"
+}
+
+POST   http://localhost:8080/api/auth/logout  
+       -- Logout user and clear token
+
+GET    http://localhost:8080/api/auth/me  
+       -- Get current logged-in user
+
+
+───────────────────────────────────────────────
+Blogs Routes :
+───────────────────────────────────────────────
+
+GET    http://localhost:8080/api/blogs  
+       -- Get all blogs (default)
+
+GET    http://localhost:8080/api/blogs?page=2&limit=5  
+       -- Get blogs with pagination
+
+GET    http://localhost:8080/api/blogs?search=career  
+       -- Search blogs by title
+
+GET    http://localhost:8080/api/blogs?search=career&page=2&limit=5  
+       -- Combine search + pagination
+
+GET    http://localhost:8080/api/blogs/68ea34d42e8a0d0d6e9f66d3  
+       -- Get blog by ID
+
+GET    http://localhost:8080/api/blogs/slug/top-10-programming-languages-to-learn  
+       -- Get blog by slug
+
+POST   http://localhost:8080/api/blogs/  
+       -- Create new blog  
+Body:
+{
+  "title": "Mastering JavaScript in 2025",
+  "slug": "mastering-javascript-in-2025",
+  "content": "This blog provides a comprehensive guide to mastering JavaScript, including new ES2025 features, frameworks, and best practices.",
+  "author": "68ea2c7d453989e32b83c9d1",
+  "thumbnail": "https://example.com/images/js-blog.jpg",
+  "tags": ["javascript", "programming", "web development"],
+  "published": true,
+  "publishedAt": "2025-10-11T10:00:00Z"
+}
+
+PUT    http://localhost:8080/api/blogs/68ea360722fa743842150b40  
+       -- Update a blog by ID
+
+DELETE http://localhost:8080/api/blogs/68ea360722fa743842150b40  
+       -- Delete blog by ID
+
+
+───────────────────────────────────────────────
+Coupons Routes :
+───────────────────────────────────────────────
+
+GET    http://localhost:8080/api/coupons  
+       -- Get all coupons
+
+GET    http://localhost:8080/api/coupons/68ea0d9378271c82f4665d1e  
+       -- Get coupon by ID
+
+POST   http://localhost:8080/api/coupons/  
+       -- Create a new coupon  
+Body:
+{
+  "code": "WELCOME50",
+  "discountType": "percentage",
+  "discountValue": 50,
+  "minPurchase": 500,
+  "expiryDate": "2025-12-31T23:59:59Z",
+  "isActive": true,
+  "usageCount": 0,
+  "maxUsage": 100
+}
+
+PUT    http://localhost:8080/api/coupons/68ea386822fa743842150b47  
+       -- Update a coupon by ID
+
+DELETE http://localhost:8080/api/coupons/68ea386822fa743842150b47  
+       -- Delete coupon by ID
+
+
+───────────────────────────────────────────────
+Testimonials Routes :
+───────────────────────────────────────────────
+
+GET    http://localhost:8080/api/testimonials  
+       -- Get all testimonials
+
+GET    http://localhost:8080/api/testimonials/68ea0d9378271c82f4665d17  
+       -- Get testimonial by ID
+
+POST   http://localhost:8080/api/testimonials/  
+       -- Create new testimonial  
+Body:
+{
+  "name": "Aarav Mehta",
+  "message": "The travel experience was absolutely amazing! The team was professional, friendly, and made everything smooth and enjoyable. Highly recommended!",
+  "rating": 5,
+  "image": "https://example.com/images/aarav-mehta.jpg",
+  "position": "Traveler",
+  "isVisible": true
+}
+
+PUT    http://localhost:8080/api/testimonials/68ea3cd122fa743842150b4e  
+       -- Update testimonial by ID
+
+DELETE http://localhost:8080/api/testimonials/68ea3cd122fa743842150b4e  
+       -- Delete testimonial by ID
+
+
+───────────────────────────────────────────────
+Leads Routes :
+───────────────────────────────────────────────
+
+GET    http://localhost:8080/api/leads  
+       -- Get all leads
+
+GET    http://localhost:8080/api/leads/68ea0d9378271c82f4665d1a  
+       -- Get lead by ID
+
+POST   http://localhost:8080/api/leads/  
+       -- Create a new lead  
+Body:
+{
+  "name": "Rohit Kumar",
+  "email": "rohit.kumar@example.com",
+  "phone": "+919876543210",
+  "message": "I'm interested in your digital marketing services. Please contact me with more details.",
+  "source": "Google Ads",
+  "status": "new"
+}
+
+PUT    http://localhost:8080/api/leads/68ea3fd022fa743842150b55  
+       -- Update lead by ID
+
+DELETE http://localhost:8080/api/leads/68ea404422fa743842150b58  
+       -- Delete lead by ID
