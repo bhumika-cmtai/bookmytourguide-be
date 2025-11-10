@@ -1,4 +1,4 @@
-import Guide from "../models/Guides.model.js"; // Corrected model import path
+import Guide from "../models/Guides.Model.js"; // Corrected model import path
 import User from "../models/Users.model.js"; // Corrected model import path
 
 /**
@@ -198,6 +198,38 @@ export const updateGuideAvailability = async (req, res) => {
       data: updatedGuide, // Send back the updated profile
     });
   } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+/**
+ * @desc    Get a single guide profile by ID
+ * @route   GET /api/guides/:id
+ * @access  Public
+ */
+export const getGuideById = async (req, res) => {
+  try {
+    // 1. Get the ID from the request URL parameters
+    const { id } = req.params;
+
+    // 2. Find the guide in the database using their ID
+    const guide = await Guide.findById(id);
+
+    // 3. If no guide is found, return a 404 error
+    if (!guide) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Guide not found." });
+    }
+
+    // 4. If the guide is found, send it back successfully
+    res.status(200).json({
+      success: true,
+      data: guide,
+    });
+  } catch (error) {
+    // Handle potential errors, like an invalid ID format
     res.status(500).json({ success: false, message: error.message });
   }
 };

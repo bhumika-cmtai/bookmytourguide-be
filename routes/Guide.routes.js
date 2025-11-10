@@ -3,7 +3,8 @@ import {
   getGuideProfile,
   updateGuideProfile,
   approveGuideProfile,
-  updateGuideAvailability
+  updateGuideAvailability,
+  getGuideById
 } from "../controllers/guide.controller.js";
 import { protect, authorize } from "../middleware/authMiddleware.js"; // Assuming you have these
 import { upload } from "../middleware/s3.uploads.js"; // Correct path to your s3 uploader
@@ -38,5 +39,8 @@ router.patch(
   authorize("admin"),   // Ensures the user is an admin
   approveGuideProfile   // Executes our new controller function
 );
+
+router.get("/:id", getGuideById);
+
 
 export default router;

@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import User from "../models/Users.Model.js";
+import User from "../models/Users.model.js";
 
 // Protect routes - check JWT from cookies
 const protect = async (req, res, next) => {

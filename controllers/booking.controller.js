@@ -217,3 +217,146 @@ export const createRazorpayOrder = async (req, res) => {
     }
   };
   
+/**
+ * @desc    Get all bookings (Admin only)
+ * @route   GET /api/bookings
+ * @access  Private (Admin)
+ */
+export const getAllBookings = async (req, res) => {
+  try {
+      const bookings = await Booking.find({})
+          .populate('user', 'name email')
+          .populate('guide', 'name')
+          .populate('tour', 'title')
+          .sort({ createdAt: -1 });
+
+      res.status(200).json({ success: true, count: bookings.length, data: bookings });
+  } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+* @desc    Get bookings for the logged-in user
+* @route   GET /api/bookings/my-bookings
+* @access  Private (User)
+*/
+export const getMyBookings = async (req, res) => {
+  try {
+      const bookings = await Booking.find({ user: req.user.id })
+          .populate('guide', 'name photo')
+          .populate('tour', 'title images')
+          .sort({ startDate: -1 });
+
+      res.status(200).json({ success: true, data: bookings });
+  } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+/**
+* @desc    Get a single booking by ID
+* @route   GET /api/bookings/:id
+* @access  Private (User/Admin)
+*/
+export const getBookingById = async (req, res) => {
+  try {
+      const booking = await Booking.findById(req.params.id)
+          .populate('user', 'name email mobile')
+          .populate('guide', 'name email mobile photo')
+          .populate('tour');
+
+      if (!booking) {
+          return res.status(404).json({ success: false, message: 'Booking not found.' });
+      }
+
+      // Security check: User can only see their own booking, Admin can see any
+      if (booking.user._id.toString() !== req.user.id && req.user.role !== 'admin') {
+           return res.status(403).json({ success: false, message: 'Not authorized to view this booking.' });
+      }
+
+      res.status(200).json({ success: true, data: booking });
+  } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+// --- UPDATE (Naya Function) ---
+
+/**
+* @desc    Update booking status (e.g., to 'Completed' or 'Cancelled')
+* @route   PATCH /api/bookings/:id/status
+* @access  Private (Admin)
+*/
+export const updateBookingStatus = async (req, res) => {
+  try {
+      const { status } = req.body;
+      const validStatuses = ["Upcoming", "Completed", "Cancelled"];
+
+      if (!status || !validStatuses.includes(status)) {
+          return res.status(400).json({ success: false, message: 'Invalid status provided.' });
+      }
+
+      const booking = await Booking.findById(req.params.id);
+
+      if (!booking) {
+          return res.status(404).json({ success: false, message: 'Booking not found.' });
+      }
+
+      // Agar booking cancel ho rahi hai, toh guide ki dates wapas available karni hogi
+      if (status === "Cancelled" && booking.status !== "Cancelled") {
+          const guide = await Guide.findById(booking.guide);
+          const bookingDates = getDatesInRange(booking.startDate, booking.endDate);
+          const bookingDatesMillis = bookingDates.map(d => d.getTime());
+
+          if (guide) {
+              guide.unavailableDates = guide.unavailableDates.filter(d => !bookingDatesMillis.includes(new Date(d).getTime()));
+              await guide.save();
+          }
+      }
+
+      booking.status = status;
+      await booking.save();
+
+      res.status(200).json({ success: true, message: `Booking status updated to ${status}.`, data: booking });
+
+  } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+// --- DELETE (Naya Function) ---
+
+/**
+* @desc    Delete a booking
+* @route   DELETE /api/bookings/:id
+* @access  Private (Admin)
+*/
+export const deleteBooking = async (req, res) => {
+  try {
+      const booking = await Booking.findById(req.params.id);
+
+      if (!booking) {
+          return res.status(404).json({ success: false, message: 'Booking not found.' });
+      }
+      
+      // Optional: Also free up the guide's dates upon deletion
+      const guide = await Guide.findById(booking.guide);
+      const bookingDates = getDatesInRange(booking.startDate, booking.endDate);
+      const bookingDatesMillis = bookingDates.map(d => d.getTime());
+
+      if (guide) {
+          guide.unavailableDates = guide.unavailableDates.filter(d => !bookingDatesMillis.includes(new Date(d).getTime()));
+          await guide.save();
+      }
+
+      await booking.deleteOne();
+
+      res.status(200).json({ success: true, message: 'Booking deleted successfully.' });
+  } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+  }
+};
