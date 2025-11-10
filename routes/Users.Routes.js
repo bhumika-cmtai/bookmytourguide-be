@@ -28,11 +28,10 @@ router.get("/", protect, authorize("admin"), getAllUsers);
  * @desc    Get own profile (current logged-in user)
  * @access  Protected (all authenticated users)
  */
-import User from "../models/Users.Model.js";
 
 router.get("/me", protect, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id)
+    const user = await UsersModel.findById(req.user._id)
       .select("-password")
       .populate("guideProfile");
 
@@ -92,7 +91,7 @@ router.delete("/:id", protect, authorize("admin"), deleteUser);
  * @desc    List all guides with optional filtering
  * @access  Protected (admin only)
  */
-router.get("/guides/all", protect, authorize("admin"), listGuides);
+router.get("/guides/all", protect, listGuides);
 
 /**
  * @route   PATCH /api/users/guides/:id/approve

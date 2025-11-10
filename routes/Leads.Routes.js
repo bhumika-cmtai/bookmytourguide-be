@@ -30,7 +30,7 @@ router.get("/:id", protect, authorize("admin", "guide", "manager"), getLeadById)
  * @desc    Create a new lead
  * @access  Protected (admin, guide, manager)
  */
-router.post("/", protect, authorize("admin", "guide", "manager"), createLead);
+router.post("/", createLead);
 
 /**
  * @route   PUT /api/leads/:id

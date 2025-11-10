@@ -3,8 +3,10 @@ import User from "../models/Users.Model.js";
 
 // Protect routes - check JWT from cookies
 const protect = async (req, res, next) => {
+  // console.log("protect here")
   try {
     const token = req.cookies?.token;
+    // console.log("token ", token)
 
     if (!token) {
       return res.status(401).json({
@@ -30,6 +32,8 @@ const protect = async (req, res, next) => {
 
     next();
   } catch (error) {
+  console.log("error in aut", error)
+
     console.error("Auth middleware error:", error.message);
     // Clear invalid token
     res.clearCookie("token", {

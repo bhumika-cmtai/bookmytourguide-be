@@ -20,7 +20,7 @@ const getCookieOption = () => {
   return {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? "none" : "lax",
+    sameSite: isProduction ? "none" : "lax", // Correction: Was 'lax' for production
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: "/",
   };
@@ -30,25 +30,25 @@ const getCookieOption = () => {
 // @route   POST /api/auth/register
 export const verifyOtpAndRegister = async (req, res) => {
   try {
-    const { name, email, password, role, otp } = req.body;
+    const { name, email, password, role, otp, mobile } = req.body; // Added mobile
 
     // ✅ Check OTP validity
     const otpRecord = await Otp.findOne({ email }).sort({ createdAt: -1 });
     if (!otpRecord)
-      return res.status(400).json({ success: false, message: "OTP not found" });
+      return res.status(400).json({ success: false, message: "OTP not found. Please request a new one." });
 
     if (otpRecord.otp !== otp)
       return res.status(400).json({ success: false, message: "Invalid OTP" });
 
     if (otpRecord.expiresAt < new Date())
-      return res.status(400).json({ success: false, message: "OTP expired" });
+      return res.status(400).json({ success: false, message: "OTP has expired" });
 
     // OTP is valid → continue registration
     const existingUser = await User.findOne({ email });
     if (existingUser)
       return res.status(400).json({
         success: false,
-        message: "Email already registered",
+        message: "Email is already registered",
       });
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -58,9 +58,10 @@ export const verifyOtpAndRegister = async (req, res) => {
       email,
       password: hashedPassword,
       role: role || "user",
+      mobile: mobile, // Save mobile number
     });
 
-    // Handle file uploads
+    // Handle file uploads (if any)
     const photoPath = req.files?.photo ? req.files.photo[0].path : null;
     const licensePath = req.files?.license ? req.files.license[0].path : null;
 
@@ -70,8 +71,11 @@ export const verifyOtpAndRegister = async (req, res) => {
         user: user._id,
         name,
         email,
+        mobile, // Save mobile to guide profile as well
+        photo: photoPath, // Save photo path
+        license: licensePath, // Save license path
         isApproved: false,
-        profileComplete: false,
+        profileComplete: false, // Profile is not complete yet
       });
 
       user.guideProfile = guideProfile._id;
@@ -96,7 +100,7 @@ export const verifyOtpAndRegister = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        guideProfile: role === "guide" ? guideProfile._id : null,
+        guideProfile: role === "guide" ? user.guideProfile : null,
       },
     });
   } catch (error) {
@@ -152,7 +156,7 @@ export const logoutUser = async (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     path: "/",
   });
   res.status(200).json({ success: true, message: "Logged out successfully" });
@@ -189,7 +193,7 @@ export const getCurrentUser = async (req, res) => {
     res.clearCookie("token", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       path: "/",
     });
 
@@ -222,7 +226,7 @@ export const refreshToken = async (req, res) => {
 
     // Create new token and set in cookie
     const newToken = createToken(user._id);
-    res.cookie("token", newToken, getCookieOptions());
+    res.cookie("token", newToken, getCookieOption()); // Corrected function call
 
     res.status(200).json({
       success: true,
@@ -241,7 +245,7 @@ export const refreshToken = async (req, res) => {
     res.clearCookie("token", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       path: "/",
     });
 

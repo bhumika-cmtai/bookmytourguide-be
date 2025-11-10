@@ -132,26 +132,38 @@ export const updateOwnProfile = async (req, res) => {
  */
 export const getAllUsers = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = "" } = req.query;
+    // 1. Destructure all potential query parameters
+    const { page = 1, limit = 10, search = "", role } = req.query;
 
-    const query = search
-      ? {
-          $or: [
-            { name: { $regex: search, $options: "i" } },
-            { email: { $regex: search, $options: "i" } },
-            { role: { $regex: search, $options: "i" } },
-          ],
-        }
-      : {};
+    // 2. Start with an empty query object
+    const query = {};
 
+    // 3. Add search condition if a search term is provided
+    //    This searches for the term in both the 'name' and 'email' fields.
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // 4. Add role filter condition if a specific role is provided
+    //    It ignores the filter if the role is 'all' or not provided.
+    if (role && role !== 'all') {
+      query.role = role;
+    }
+
+    // 5. Execute the find query with the dynamically built conditions
     const users = await User.find(query)
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
-      .select("-password");
+      .select("-password"); // Exclude password from the result
 
+    // 6. Get the total count of documents matching the same query for pagination
     const total = await User.countDocuments(query);
 
+    // 7. Send the successful response with pagination data
     res.status(200).json({
       success: true,
       total,
@@ -160,9 +172,11 @@ export const getAllUsers = async (req, res) => {
       data: users,
     });
   } catch (error) {
+    // Handle any potential errors
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 /**
  * Get user by ID (Admin or own profile)

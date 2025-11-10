@@ -22,8 +22,9 @@ const guideSchema = new mongoose.Schema(
     languages: [{ type: String, trim: true }],
     experience: { type: String, trim: true },
     specializations: [{ type: String, trim: true }],
-    availability: [{ type: String, trim: true }],
-    hourlyRate: { type: Number, default: 0 },
+    // availability: [{ type: String, trim: true }],
+    unavailableDates: [{ type: Date }],
+    // hourlyRate: { type: Number, default: 0 },
     description: { type: String, trim: true },
 
     // Documents and media
@@ -42,9 +43,26 @@ const guideSchema = new mongoose.Schema(
       type: Boolean,
       default: false, // set true only when approved by admin
     },
+    isCertified: {
+      type: Boolean,
+      default: false, // Becomes true after successful subscription
+    },
+    subscriptionId: {
+      type: String, // To store the Razorpay payment ID
+      trim: true,
+    },
+    subscriptionPlan: {
+      type: String, // e.g., "Pro", "Partner"
+      trim: true,
+    },
+    subscriptionExpiresAt: {
+      type: Date, // The date when the certification expires
+    },
+
     profileComplete: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
 
-export default mongoose.model("Guide", guideSchema);
+export default mongoose.models.Guide || mongoose.model("Guide", guideSchema);
+

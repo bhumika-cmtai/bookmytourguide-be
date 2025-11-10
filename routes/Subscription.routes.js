@@ -6,6 +6,8 @@ import {
   getSubscriptionById,
   updateSubscription,
   deleteSubscription,
+  createOrder,
+  verifyPayment
 } from "../controllers/subscription.controller.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 
@@ -24,5 +26,9 @@ router
   .route("/:id")
   .put(protect, authorize("admin"), updateSubscription)
   .delete(protect, authorize("admin"), deleteSubscription);
+
+router.post("/create-order", protect, createOrder);
+router.post("/verify-payment", protect, verifyPayment);
+  
 
 export default router;

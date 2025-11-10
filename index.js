@@ -14,6 +14,9 @@ import authRoutes from "./routes/Auth.Routes.js";
 import locationRoutes from "./routes/Location.routes.js";
 import languageRoutes from "./routes/Language.routes.js";
 import subscriptionRoutes from "./routes/Subscription.routes.js"; 
+// import guideRoutes from "./routes/Guide.routes.js";
+import guideRoutes from "./routes/Guide.routes.js"
+import bookingRoutes from './routes/booking.routes.js';
 import cookieParser from "cookie-parser";
 import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
 
@@ -53,6 +56,8 @@ app.use("/api/locations", locationRoutes);
 app.use("/api/languages", languageRoutes);
 app.use("/api/packages", packageRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
+app.use("/api/guides", guideRoutes);
+app.use("/api/bookings", bookingRoutes);
 app.use("/uploads", express.static("uploads"));
 
 //Middleware for handling errors:
@@ -60,7 +65,7 @@ app.use(notFound);
 app.use(errorHandler);
 
 // Start server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
