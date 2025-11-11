@@ -4,7 +4,9 @@ import {
   updateGuideProfile,
   approveGuideProfile,
   updateGuideAvailability,
-  getGuideById
+  getGuideById,
+  getAllGuides,
+  getGuidePricingDetails
 } from "../controllers/guide.controller.js";
 import { protect, authorize } from "../middleware/authMiddleware.js"; // Assuming you have these
 import { upload } from "../middleware/s3.uploads.js"; // Correct path to your s3 uploader
@@ -40,7 +42,11 @@ router.patch(
   approveGuideProfile   // Executes our new controller function
 );
 
+router.get("/all", getAllGuides);
+router.get("/:id/pricing-details", getGuidePricingDetails)
+
 router.get("/:id", getGuideById);
+
 
 
 export default router;

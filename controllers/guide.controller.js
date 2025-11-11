@@ -1,5 +1,7 @@
 import Guide from "../models/Guides.Model.js"; // Corrected model import path
 import User from "../models/Users.model.js"; // Corrected model import path
+import Location from "../models/Location.Model.js"; 
+import Language from "../models/Language.Model.js"; 
 
 /**
  * @desc    Get the profile of the logged-in guide
@@ -49,7 +51,8 @@ export const updateGuideProfile = async (req, res) => {
       dob,
       state,
       country,
-      languages,
+      languages, // ✅ NOW EXPECTS: An array of language name strings
+      serviceLocations,
       experience,
       specializations,
       availability,
@@ -69,8 +72,15 @@ export const updateGuideProfile = async (req, res) => {
 
     // Handle array fields
     if (languages) {
-        guide.languages = Array.isArray(languages) ? languages : JSON.parse(languages);
-    }
+      // This code correctly handles an array of strings from the frontend
+      guide.languages = Array.isArray(languages) ? languages : JSON.parse(languages);
+  }
+  if (serviceLocations) {
+      guide.serviceLocations = Array.isArray(serviceLocations) ? serviceLocations : JSON.parse(serviceLocations);
+  }
+  if (specializations) {
+      guide.specializations = Array.isArray(specializations) ? specializations : JSON.parse(specializations);
+  }
     if (specializations) {
         guide.specializations = Array.isArray(specializations) ? specializations : JSON.parse(specializations);
     }
@@ -109,6 +119,57 @@ export const updateGuideProfile = async (req, res) => {
     
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+export const getAllGuides = async (req, res) => {
+  try {
+    // 1. Destructure query parameters with defaults for pagination
+    const { location, language, page = 1, limit = 20 } = req.query;
+
+    // 2. Build a dynamic filter object
+    const filter = {
+      isApproved: true,
+      profileComplete: true,
+    };
+
+    // If a location is provided, add it to the filter using a case-insensitive regex
+    if (location) {
+      filter.serviceLocations = { $regex: new RegExp(`^${location}$`, 'i') };
+    }
+
+    // If a language is provided, add it to the filter using a case-insensitive regex
+    if (language) {
+      filter.languages = { $regex: new RegExp(`^${language}$`, 'i') };
+    }
+    
+    // 3. Setup pagination
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    // 4. Execute the query WITH the filter object
+    const guides = await Guide.find(filter)
+      .populate('user', 'name email role')
+      .sort({ createdAt: -1 })
+      .limit(limitNum)
+      .skip(skip);
+
+    // 5. Get the total count of documents that match the filter for pagination
+    const total = await Guide.countDocuments(filter);
+
+    // 6. Send the response with pagination data
+    res.status(200).json({
+      success: true,
+      count: guides.length,
+      total,
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum),
+      data: guides,
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -230,6 +291,42 @@ export const getGuideById = async (req, res) => {
     });
   } catch (error) {
     // Handle potential errors, like an invalid ID format
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+export const getGuidePricingDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 1. Find the guide to get their list of services
+    const guide = await Guide.findById(id).select('serviceLocations languages');
+
+    if (!guide) {
+      return res.status(404).json({ success: false, message: "Guide not found." });
+    }
+
+    // 2. Fetch the full location documents based on the names in the guide's profile
+    const locations = await Location.find({
+      placeName: { $in: guide.serviceLocations }
+    }).select('placeName pricePerPerson'); // Only select the fields we need
+
+    // 3. Fetch the full language documents based on the names
+    const languages = await Language.find({
+      languageName: { $in: guide.languages }
+    }).select('languageName extraCharge'); // Only select the fields we need
+
+    // 4. Return the fetched details
+    res.status(200).json({
+      success: true,
+      data: {
+        locations,
+        languages,
+      },
+    });
+
+  } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
