@@ -1,6 +1,8 @@
+// controllers/booking.controller.js
+
 import Booking from "../models/booking.model.js";
 import Guide from "../models/Guides.Model.js";
-import AdminPackage from "../models/Package.Model.js"; // Ensure you have this package model
+import AdminPackage from "../models/Package.Model.js";
 import Razorpay from "razorpay";
 import crypto from "crypto";
 
@@ -8,69 +10,62 @@ import crypto from "crypto";
 const getDatesInRange = (startDate, endDate) => {
   const dates = [];
   let currentDate = new Date(startDate);
-  
+
   while (currentDate <= new Date(endDate)) {
     dates.push(new Date(currentDate));
     currentDate.setDate(currentDate.getDate() + 1);
   }
-  
+
   return dates;
 };
 
-/**
- * @desc    Create a new booking after successful payment
- * @route   POST /api/bookings/create
- * @access  Private (User)
- */
-export const createBooking = async (req, res) => { // Removed 'next' from parameters
+export const createBooking = async (req, res) => {
   try {
-    const {
-      tourId,
-      guideId,
-      startDate,
-      endDate,
-      numberOfTourists,
-      paymentId,
-    } = req.body;
+    const { tourId, guideId, startDate, endDate, numberOfTourists, paymentId } =
+      req.body;
     const userId = req.user.id;
-    console.log("yahan pahuch gye")
 
-    // 1. Validate inputs
-    if (!tourId || !guideId || !startDate || !endDate || !numberOfTourists || !paymentId) {
-      // --- CHANGE: Direct response instead of errorHandler ---
-      return res.status(400).json({ success: false, message: "All booking fields are required." });
+    if (
+      !tourId ||
+      !guideId ||
+      !startDate ||
+      !endDate ||
+      !numberOfTourists ||
+      !paymentId
+    ) {
+      return res
+        .status(400)
+        .json({ success: false, message: "All booking fields are required." });
     }
 
-    // 2. Fetch tour and guide from DB to verify details
     const tour = await AdminPackage.findById(tourId);
     const guide = await Guide.findById(guideId);
 
     if (!tour || !guide) {
-      // --- CHANGE: Direct response instead of errorHandler ---
-      return res.status(404).json({ success: false, message: "Tour or Guide not found." });
+      return res
+        .status(404)
+        .json({ success: false, message: "Tour or Guide not found." });
     }
 
-    // 3. Server-side calculation to prevent price tampering
     const totalPrice = tour.price * parseInt(numberOfTourists);
-    const advanceAmount = totalPrice * 0.20; // 20% advance
+    const advanceAmount = totalPrice * 0.2;
 
-    // 4. Update Guide's availability
     const bookingDates = getDatesInRange(startDate, endDate);
-    
-    // Check for double booking before saving
-    const isAlreadyBooked = guide.unavailableDates.some(date => 
-        bookingDates.some(bDate => bDate.getTime() === new Date(date).getTime())
+
+    const isAlreadyBooked = guide.unavailableDates.some((date) =>
+      bookingDates.some((bDate) => bDate.getTime() === new Date(date).getTime())
     );
 
-    if(isAlreadyBooked) {
-        // --- CHANGE: Direct response instead of errorHandler ---
-        return res.status(409).json({ success: false, message: "Sorry, the guide is no longer available for these dates." });
+    if (isAlreadyBooked) {
+      return res.status(409).json({
+        success: false,
+        message: "Sorry, the guide is no longer available for these dates.",
+      });
     }
-    
+
     guide.unavailableDates.push(...bookingDates);
     await guide.save();
 
-    // 5. Create the new booking document
     const newBooking = new Booking({
       tour: tourId,
       guide: guideId,
@@ -90,273 +85,285 @@ export const createBooking = async (req, res) => { // Removed 'next' from parame
       message: "Booking confirmed successfully!",
       data: savedBooking,
     });
-
   } catch (error) {
-    // --- CHANGE: Direct response instead of next(error) ---
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-
 export const createRazorpayOrder = async (req, res) => {
-    try {
-      const instance = new Razorpay({
-        key_id: process.env.RAZORPAY_KEY_ID,
-        key_secret: process.env.RAZORPAY_KEY_SECRET,
-      });
-  
-      const { amount, currency = "INR", receipt } = req.body;
-  
-      if (!amount || !receipt) {
-          return res.status(400).json({ success: false, message: "Amount and receipt are required." });
-      }
-  
-      const options = {
-        amount: amount * 100, // Amount in the smallest currency unit (paise for INR)
-        currency,
-        receipt,
-      };
-  
-      const order = await instance.orders.create(options);
-  
-      if (!order) {
-        return res.status(500).json({ success: false, message: "Could not create Razorpay order." });
-      }
-  
-      res.status(200).json({ success: true, data: order });
-    } catch (error) {
-      res.status(500).json({ success: false, message: error.message });
+  try {
+    const instance = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+
+    const { amount, currency = "INR", receipt } = req.body;
+
+    if (!amount || !receipt) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Amount and receipt are required." });
     }
-  };
-  
-  
-  /**
-   * @desc    Verify Razorpay Payment and Create Booking
-   * @route   POST /api/payments/verify
-   * @access  Private (User)
-   */
-  export const verifyPaymentAndCreateBooking = async (req, res) => {
-    try {
-      // 1. Get payment details and booking info from request body
-      const {
-        razorpay_order_id,
-        razorpay_payment_id,
-        razorpay_signature,
-        // Booking details
-        tourId,
-        guideId,
-        startDate,
-        endDate,
-        numberOfTourists,
-      } = req.body;
-      const userId = req.user.id;
-  
-      // 2. Verify the payment signature
-      const body = razorpay_order_id + "|" + razorpay_payment_id;
-      const expectedSignature = crypto
-        .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-        .update(body.toString())
-        .digest("hex");
-  
-      if (expectedSignature !== razorpay_signature) {
-        return res.status(400).json({ success: false, message: "Payment verification failed. Invalid signature." });
-      }
-  
-      // --- If signature is valid, proceed with creating the booking ---
-  
-      // 3. Fetch related documents
-      const tour = await AdminPackage.findById(tourId);
-      const guide = await Guide.findById(guideId);
-  
-      if (!tour || !guide) {
-        return res.status(404).json({ success: false, message: "Tour or Guide not found." });
-      }
-  
-      // 4. Server-side calculation
-      const totalPrice = tour.price * parseInt(numberOfTourists);
-      const advanceAmount = totalPrice * 0.20;
-  
-      // 5. Update Guide's availability
-      const bookingDates = getDatesInRange(startDate, endDate);
-      
-      // Check for double booking
-      const isAlreadyBooked = guide.unavailableDates.some(date => 
-          bookingDates.some(bDate => bDate.getTime() === new Date(date).getTime())
-      );
-      if (isAlreadyBooked) {
-        // Note: In a real-world scenario, you might need to refund the payment here.
-        return res.status(409).json({ success: false, message: "Sorry, the guide was booked while you were paying." });
-      }
-      
-      guide.unavailableDates.push(...bookingDates);
-      await guide.save();
-  
-      // 6. Create the booking document
-      const newBooking = new Booking({
-        tour: tourId,
-        guide: guideId,
-        user: userId,
-        startDate,
-        endDate,
-        numberOfTourists: parseInt(numberOfTourists),
-        totalPrice,
-        advanceAmount,
-        paymentId: razorpay_payment_id, // Use the real payment ID
-      });
-  
-      const savedBooking = await newBooking.save();
-  
-      res.status(201).json({
-        success: true,
-        message: "Booking confirmed successfully!",
-        data: savedBooking,
-      });
-  
-    } catch (error) {
-      res.status(500).json({ success: false, message: error.message });
+
+    const options = {
+      amount: amount * 100,
+      currency,
+      receipt,
+    };
+
+    const order = await instance.orders.create(options);
+
+    if (!order) {
+      return res
+        .status(500)
+        .json({ success: false, message: "Could not create Razorpay order." });
     }
-  };
-  
-/**
- * @desc    Get all bookings (Admin only)
- * @route   GET /api/bookings
- * @access  Private (Admin)
- */
+
+    res.status(200).json({ success: true, data: order });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const verifyPaymentAndCreateBooking = async (req, res) => {
+  try {
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      tourId,
+      guideId,
+      startDate,
+      endDate,
+      numberOfTourists,
+    } = req.body;
+    const userId = req.user.id;
+
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
+    const expectedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .update(body.toString())
+      .digest("hex");
+
+    if (expectedSignature !== razorpay_signature) {
+      return res.status(400).json({
+        success: false,
+        message: "Payment verification failed. Invalid signature.",
+      });
+    }
+
+    const tour = await AdminPackage.findById(tourId);
+    const guide = await Guide.findById(guideId);
+
+    if (!tour || !guide) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Tour or Guide not found." });
+    }
+
+    const totalPrice = tour.price * parseInt(numberOfTourists);
+    const advanceAmount = totalPrice * 0.2;
+
+    const bookingDates = getDatesInRange(startDate, endDate);
+
+    const isAlreadyBooked = guide.unavailableDates.some((date) =>
+      bookingDates.some((bDate) => bDate.getTime() === new Date(date).getTime())
+    );
+    if (isAlreadyBooked) {
+      return res.status(409).json({
+        success: false,
+        message: "Sorry, the guide was booked while you were paying.",
+      });
+    }
+
+    guide.unavailableDates.push(...bookingDates);
+    await guide.save();
+
+    const newBooking = new Booking({
+      tour: tourId,
+      guide: guideId,
+      user: userId,
+      startDate,
+      endDate,
+      numberOfTourists: parseInt(numberOfTourists),
+      totalPrice,
+      advanceAmount,
+      paymentId: razorpay_payment_id,
+    });
+
+    const savedBooking = await newBooking.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Booking confirmed successfully!",
+      data: savedBooking,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export const getAllBookings = async (req, res) => {
   try {
-      const bookings = await Booking.find({})
-          .populate('user', 'name email')
-          .populate('guide', 'name')
-          .populate('tour', 'title')
-          .sort({ createdAt: -1 });
+    const bookings = await Booking.find({})
+      .populate("user", "name email")
+      .populate("guide", "name")
+      .populate("tour", "title images")
+      .sort({ createdAt: -1 });
 
-      res.status(200).json({ success: true, count: bookings.length, data: bookings });
+    res
+      .status(200)
+      .json({ success: true, count: bookings.length, data: bookings });
   } catch (error) {
-      res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-/**
-* @desc    Get bookings for the logged-in user
-* @route   GET /api/bookings/my-bookings
-* @access  Private (User)
-*/
 export const getMyBookings = async (req, res) => {
   try {
-      const bookings = await Booking.find({ user: req.user.id })
-          .populate('guide', 'name photo')
-          .populate('tour', 'title images')
-          .sort({ startDate: -1 });
+    const bookings = await Booking.find({ user: req.user.id })
+      .populate("guide", "name photo")
+      .populate("tour", "title images locations")
+      .sort({ startDate: -1 });
 
-      res.status(200).json({ success: true, data: bookings });
+    res.status(200).json({ success: true, data: bookings });
   } catch (error) {
-      res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-
+// --- THIS FUNCTION HAS BEEN CORRECTED ---
 /**
-* @desc    Get a single booking by ID
-* @route   GET /api/bookings/:id
-* @access  Private (User/Admin)
-*/
+ * @desc    Get bookings for the logged-in guide
+ * @route   GET /api/bookings/guide-bookings
+ * @access  Private (Guide)
+ */
+export const getGuideBookings = async (req, res) => {
+  try {
+    const guideProfile = await Guide.findOne({ user: req.user.id });
+
+    if (!guideProfile) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    const bookings = await Booking.find({ guide: guideProfile._id })
+      .populate("user", "name email mobile")
+      .populate("tour", "title images locations")
+      .populate("guide", "name photo") // <-- ADD THIS LINE
+      .sort({ startDate: -1 });
+
+    res.status(200).json({ success: true, data: bookings });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export const getBookingById = async (req, res) => {
   try {
-      const booking = await Booking.findById(req.params.id)
-          .populate('user', 'name email mobile')
-          .populate('guide', 'name email mobile photo')
-          .populate('tour');
+    const booking = await Booking.findById(req.params.id)
+      .populate("user", "name email mobile")
+      .populate("guide", "name email mobile photo")
+      .populate("tour");
 
-      if (!booking) {
-          return res.status(404).json({ success: false, message: 'Booking not found.' });
-      }
+    if (!booking) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Booking not found." });
+    }
 
-      // Security check: User can only see their own booking, Admin can see any
-      if (booking.user._id.toString() !== req.user.id && req.user.role !== 'admin') {
-           return res.status(403).json({ success: false, message: 'Not authorized to view this booking.' });
-      }
+    const isUser = booking.user._id.toString() === req.user.id;
+    const isAdmin = req.user.role === "admin";
 
-      res.status(200).json({ success: true, data: booking });
+    const guideProfile = await Guide.findOne({ user: req.user.id });
+    const isAssignedGuide =
+      guideProfile &&
+      booking.guide._id.toString() === guideProfile._id.toString();
+
+    if (!isUser && !isAdmin && !isAssignedGuide) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to view this booking.",
+      });
+    }
+
+    res.status(200).json({ success: true, data: booking });
   } catch (error) {
-      res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-
-// --- UPDATE (Naya Function) ---
-
-/**
-* @desc    Update booking status (e.g., to 'Completed' or 'Cancelled')
-* @route   PATCH /api/bookings/:id/status
-* @access  Private (Admin)
-*/
 export const updateBookingStatus = async (req, res) => {
   try {
-      const { status } = req.body;
-      const validStatuses = ["Upcoming", "Completed", "Cancelled"];
+    const { status } = req.body;
+    const validStatuses = ["Upcoming", "Completed", "Cancelled"];
 
-      if (!status || !validStatuses.includes(status)) {
-          return res.status(400).json({ success: false, message: 'Invalid status provided.' });
+    if (!status || !validStatuses.includes(status)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid status provided." });
+    }
+
+    const booking = await Booking.findById(req.params.id);
+
+    if (!booking) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Booking not found." });
+    }
+
+    if (status === "Cancelled" && booking.status !== "Cancelled") {
+      const guide = await Guide.findById(booking.guide);
+      const bookingDates = getDatesInRange(booking.startDate, booking.endDate);
+      const bookingDatesMillis = bookingDates.map((d) => d.getTime());
+
+      if (guide) {
+        guide.unavailableDates = guide.unavailableDates.filter(
+          (d) => !bookingDatesMillis.includes(new Date(d).getTime())
+        );
+        await guide.save();
       }
+    }
 
-      const booking = await Booking.findById(req.params.id);
+    booking.status = status;
+    await booking.save();
 
-      if (!booking) {
-          return res.status(404).json({ success: false, message: 'Booking not found.' });
-      }
-
-      // Agar booking cancel ho rahi hai, toh guide ki dates wapas available karni hogi
-      if (status === "Cancelled" && booking.status !== "Cancelled") {
-          const guide = await Guide.findById(booking.guide);
-          const bookingDates = getDatesInRange(booking.startDate, booking.endDate);
-          const bookingDatesMillis = bookingDates.map(d => d.getTime());
-
-          if (guide) {
-              guide.unavailableDates = guide.unavailableDates.filter(d => !bookingDatesMillis.includes(new Date(d).getTime()));
-              await guide.save();
-          }
-      }
-
-      booking.status = status;
-      await booking.save();
-
-      res.status(200).json({ success: true, message: `Booking status updated to ${status}.`, data: booking });
-
+    res.status(200).json({
+      success: true,
+      message: `Booking status updated to ${status}.`,
+      data: booking,
+    });
   } catch (error) {
-      res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-
-// --- DELETE (Naya Function) ---
-
-/**
-* @desc    Delete a booking
-* @route   DELETE /api/bookings/:id
-* @access  Private (Admin)
-*/
 export const deleteBooking = async (req, res) => {
   try {
-      const booking = await Booking.findById(req.params.id);
+    const booking = await Booking.findById(req.params.id);
 
-      if (!booking) {
-          return res.status(404).json({ success: false, message: 'Booking not found.' });
-      }
-      
-      // Optional: Also free up the guide's dates upon deletion
-      const guide = await Guide.findById(booking.guide);
-      const bookingDates = getDatesInRange(booking.startDate, booking.endDate);
-      const bookingDatesMillis = bookingDates.map(d => d.getTime());
+    if (!booking) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Booking not found." });
+    }
 
-      if (guide) {
-          guide.unavailableDates = guide.unavailableDates.filter(d => !bookingDatesMillis.includes(new Date(d).getTime()));
-          await guide.save();
-      }
+    const guide = await Guide.findById(booking.guide);
+    const bookingDates = getDatesInRange(booking.startDate, booking.endDate);
+    const bookingDatesMillis = bookingDates.map((d) => d.getTime());
 
-      await booking.deleteOne();
+    if (guide) {
+      guide.unavailableDates = guide.unavailableDates.filter(
+        (d) => !bookingDatesMillis.includes(new Date(d).getTime())
+      );
+      await guide.save();
+    }
 
-      res.status(200).json({ success: true, message: 'Booking deleted successfully.' });
+    await booking.deleteOne();
+
+    res
+      .status(200)
+      .json({ success: true, message: "Booking deleted successfully." });
   } catch (error) {
-      res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };

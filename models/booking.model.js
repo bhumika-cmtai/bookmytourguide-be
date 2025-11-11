@@ -1,10 +1,14 @@
+// models/booking.model.js
+
 import mongoose from "mongoose";
 
 const bookingSchema = new mongoose.Schema(
   {
     tour: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "AdminPackage", // Reference to your tour/package model
+      // --- YEH BADLAAV KIYA GAYA HAI ---
+      // "AdminPackage" ko "Package" se badal diya gaya hai
+      ref: "Package",
       required: true,
     },
     guide: {
@@ -37,4 +41,5 @@ const bookingSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.models.Booking || mongoose.model("Booking", bookingSchema);
+export default mongoose.models.Booking ||
+  mongoose.model("Booking", bookingSchema);
