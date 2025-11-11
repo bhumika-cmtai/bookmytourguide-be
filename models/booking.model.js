@@ -6,19 +6,17 @@ const bookingSchema = new mongoose.Schema(
   {
     tour: {
       type: mongoose.Schema.Types.ObjectId,
-      // --- YEH BADLAAV KIYA GAYA HAI ---
-      // "AdminPackage" ko "Package" se badal diya gaya hai
       ref: "Package",
       required: true,
     },
     guide: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Guide", // Reference to your guide model
+      ref: "Guide", // Yeh current/assigned guide hai
       required: true,
     },
     user: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User", // Reference to the user who booked
+      ref: "User",
       required: true,
     },
     startDate: { type: Date, required: true },
@@ -26,16 +24,34 @@ const bookingSchema = new mongoose.Schema(
     numberOfTourists: { type: Number, required: true, min: 1 },
     totalPrice: { type: Number, required: true },
     advanceAmount: { type: Number, required: true },
-    paymentId: { type: String, required: true }, // From payment gateway
+    paymentId: { type: String, required: true },
     status: {
       type: String,
-      enum: ["Upcoming", "Completed", "Cancelled"],
+      enum: ["Upcoming", "Completed", "Cancelled", "Awaiting Substitute"], // Naya status add kiya gaya
       default: "Upcoming",
     },
     paymentStatus: {
       type: String,
       enum: ["Advance Paid", "Fully Paid", "Refunded"],
       default: "Advance Paid",
+    },
+    cancelledBy: {
+      cancellerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      cancellerRole: {
+        type: String,
+        enum: ["user", "guide", "admin"],
+      },
+      cancellerName: {
+        type: String,
+      },
+    },
+    originalGuide: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Guide",
+      default: null,
     },
   },
   { timestamps: true }

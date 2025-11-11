@@ -1,21 +1,16 @@
-// controllers/booking.controller.js
-
 import Booking from "../models/booking.model.js";
 import Guide from "../models/Guides.Model.js";
 import AdminPackage from "../models/Package.Model.js";
 import Razorpay from "razorpay";
 import crypto from "crypto";
 
-// Helper function to get all dates between a start and end date
 const getDatesInRange = (startDate, endDate) => {
   const dates = [];
   let currentDate = new Date(startDate);
-
   while (currentDate <= new Date(endDate)) {
     dates.push(new Date(currentDate));
     currentDate.setDate(currentDate.getDate() + 1);
   }
-
   return dates;
 };
 
@@ -232,12 +227,6 @@ export const getMyBookings = async (req, res) => {
   }
 };
 
-// --- THIS FUNCTION HAS BEEN CORRECTED ---
-/**
- * @desc    Get bookings for the logged-in guide
- * @route   GET /api/bookings/guide-bookings
- * @access  Private (Guide)
- */
 export const getGuideBookings = async (req, res) => {
   try {
     const guideProfile = await Guide.findOne({ user: req.user.id });
@@ -249,7 +238,7 @@ export const getGuideBookings = async (req, res) => {
     const bookings = await Booking.find({ guide: guideProfile._id })
       .populate("user", "name email mobile")
       .populate("tour", "title images locations")
-      .populate("guide", "name photo") // <-- ADD THIS LINE
+      .populate("guide", "name photo")
       .sort({ startDate: -1 });
 
     res.status(200).json({ success: true, data: bookings });
@@ -263,27 +252,13 @@ export const getBookingById = async (req, res) => {
     const booking = await Booking.findById(req.params.id)
       .populate("user", "name email mobile")
       .populate("guide", "name email mobile photo")
+      .populate("originalGuide", "name email mobile photo")
       .populate("tour");
 
     if (!booking) {
       return res
         .status(404)
         .json({ success: false, message: "Booking not found." });
-    }
-
-    const isUser = booking.user._id.toString() === req.user.id;
-    const isAdmin = req.user.role === "admin";
-
-    const guideProfile = await Guide.findOne({ user: req.user.id });
-    const isAssignedGuide =
-      guideProfile &&
-      booking.guide._id.toString() === guideProfile._id.toString();
-
-    if (!isUser && !isAdmin && !isAssignedGuide) {
-      return res.status(403).json({
-        success: false,
-        message: "Not authorized to view this booking.",
-      });
     }
 
     res.status(200).json({ success: true, data: booking });
@@ -295,7 +270,12 @@ export const getBookingById = async (req, res) => {
 export const updateBookingStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    const validStatuses = ["Upcoming", "Completed", "Cancelled"];
+    const validStatuses = [
+      "Upcoming",
+      "Completed",
+      "Cancelled",
+      "Awaiting Substitute",
+    ];
 
     if (!status || !validStatuses.includes(status)) {
       return res
@@ -311,19 +291,6 @@ export const updateBookingStatus = async (req, res) => {
         .json({ success: false, message: "Booking not found." });
     }
 
-    if (status === "Cancelled" && booking.status !== "Cancelled") {
-      const guide = await Guide.findById(booking.guide);
-      const bookingDates = getDatesInRange(booking.startDate, booking.endDate);
-      const bookingDatesMillis = bookingDates.map((d) => d.getTime());
-
-      if (guide) {
-        guide.unavailableDates = guide.unavailableDates.filter(
-          (d) => !bookingDatesMillis.includes(new Date(d).getTime())
-        );
-        await guide.save();
-      }
-    }
-
     booking.status = status;
     await booking.save();
 
@@ -334,6 +301,214 @@ export const updateBookingStatus = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const cancelAndRefundBooking = async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+
+    if (!booking) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Booking not found." });
+    }
+
+    const isUser = booking.user.toString() === req.user.id;
+    const isAdmin = req.user.role === "admin";
+
+    if (!isUser && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to perform this action.",
+      });
+    }
+
+    if (booking.status !== "Upcoming") {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot cancel a booking with status '${booking.status}'.`,
+      });
+    }
+
+    // Razorpay refund process
+    try {
+      const instance = new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID,
+        key_secret: process.env.RAZORPAY_KEY_SECRET,
+      });
+
+      // Pehle payment details check karo
+      console.log("Payment ID:", booking.paymentId);
+      console.log("Refund Amount:", booking.advanceAmount * 100);
+
+      // Payment fetch karke check karo ki captured hai ya nahi
+      const payment = await instance.payments.fetch(booking.paymentId);
+      console.log("Payment Status:", payment.status);
+
+      if (payment.status !== 'captured') {
+        return res.status(400).json({
+          success: false,
+          message: "Payment was not captured. Cannot process refund.",
+        });
+      }
+
+      // Refund create karo - SAHI SYNTAX
+      const refund = await instance.payments.refund(booking.paymentId, {
+        amount: Math.round(booking.advanceAmount * 100), // Ensure integer
+        speed: "normal",
+        notes: {
+          reason: "Booking cancelled by user/admin.",
+          bookingId: booking._id.toString(),
+        },
+      });
+
+      console.log("Refund Created:", refund);
+
+    } catch (razorpayError) {
+      console.error("RAZORPAY REFUND ERROR:", razorpayError);
+      console.error("Error Details:", {
+        message: razorpayError.message,
+        statusCode: razorpayError.statusCode,
+        error: razorpayError.error,
+      });
+
+      // Better error message
+      let errorMessage = "Refund processing failed. ";
+      if (razorpayError.error?.description) {
+        errorMessage += razorpayError.error.description;
+      } else if (razorpayError.message) {
+        errorMessage += razorpayError.message;
+      } else {
+        errorMessage += "Please contact support.";
+      }
+
+      return res.status(500).json({
+        success: false,
+        message: errorMessage,
+      });
+    }
+
+    // Guide dates remove karo
+    const guide = await Guide.findById(booking.guide);
+    if (guide) {
+      const bookingDates = getDatesInRange(booking.startDate, booking.endDate);
+      const bookingDatesMillis = bookingDates.map((d) => d.getTime());
+      guide.unavailableDates = guide.unavailableDates.filter(
+        (d) => !bookingDatesMillis.includes(new Date(d).getTime())
+      );
+      await guide.save();
+    }
+
+    // Booking update karo
+    booking.status = "Cancelled";
+    booking.paymentStatus = "Refunded";
+    const updatedBooking = await booking.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Booking successfully cancelled and refund initiated.",
+      data: updatedBooking,
+    });
+  } catch (error) {
+    console.error("CANCELLATION CONTROLLER ERROR:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to cancel booking." });
+  }
+};
+
+export const assignSubstituteGuide = async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized. Only admins can perform this action.",
+      });
+    }
+
+    const { substituteGuideId } = req.body;
+    if (!substituteGuideId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Substitute guide ID is required." });
+    }
+
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Booking not found." });
+    }
+
+    if (!["Upcoming", "Awaiting Substitute"].includes(booking.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Can only assign substitute for 'Upcoming' or 'Awaiting Substitute' bookings.`,
+      });
+    }
+    if (booking.guide.toString() === substituteGuideId) {
+      return res.status(400).json({
+        success: false,
+        message: "This guide is already assigned to the booking.",
+      });
+    }
+
+    const originalGuide = await Guide.findById(booking.guide);
+    const substituteGuide = await Guide.findById(substituteGuideId);
+
+    if (!substituteGuide) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Substitute guide not found." });
+    }
+
+    const bookingDates = getDatesInRange(booking.startDate, booking.endDate);
+    const isAlreadyBooked = substituteGuide.unavailableDates.some((date) =>
+      bookingDates.some((bDate) => bDate.getTime() === new Date(date).getTime())
+    );
+
+    if (isAlreadyBooked) {
+      return res.status(409).json({
+        success: false,
+        message: "Substitute guide is not available for these dates.",
+      });
+    }
+
+    if (originalGuide) {
+      const bookingDatesMillis = bookingDates.map((d) => d.getTime());
+      originalGuide.unavailableDates = originalGuide.unavailableDates.filter(
+        (d) => !bookingDatesMillis.includes(new Date(d).getTime())
+      );
+      await originalGuide.save();
+    }
+
+    substituteGuide.unavailableDates.push(...bookingDates);
+    await substituteGuide.save();
+
+    if (!booking.originalGuide) {
+      booking.originalGuide = booking.guide;
+    }
+    booking.guide = substituteGuideId;
+    booking.status = "Upcoming";
+    await booking.save();
+
+    const populatedBooking = await Booking.findById(booking._id)
+      .populate("user", "name email mobile")
+      .populate("guide", "name email mobile photo")
+      .populate("originalGuide", "name email mobile photo")
+      .populate("tour");
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully assigned ${substituteGuide.name} as the new guide.`,
+      data: populatedBooking,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to assign substitute guide.",
+    });
   }
 };
 
