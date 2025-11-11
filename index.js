@@ -17,6 +17,8 @@ import subscriptionRoutes from "./routes/Subscription.routes.js";
 // import guideRoutes from "./routes/Guide.routes.js";
 import guideRoutes from "./routes/Guide.routes.js"
 import bookingRoutes from './routes/booking.routes.js';
+import touguideRoutes from './routes/TourGuideBooking.routes.js'
+import userBookingRoutes from './routes/userBooking.routes.js'
 import cookieParser from "cookie-parser";
 import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
 
@@ -58,6 +60,8 @@ app.use("/api/packages", packageRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/guides", guideRoutes);
 app.use("/api/bookings", bookingRoutes);
+app.use("/api/tourguide", touguideRoutes);
+app.use("/api/userBooking", userBookingRoutes);
 app.use("/uploads", express.static("uploads"));
 
 //Middleware for handling errors:
