@@ -1,5 +1,3 @@
-// models/booking.model.js
-
 import mongoose from "mongoose";
 
 const bookingSchema = new mongoose.Schema(
@@ -11,7 +9,7 @@ const bookingSchema = new mongoose.Schema(
     },
     guide: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Guide", // Yeh current/assigned guide hai
+      ref: "Guide",
       required: true,
     },
     user: {
@@ -24,10 +22,15 @@ const bookingSchema = new mongoose.Schema(
     numberOfTourists: { type: Number, required: true, min: 1 },
     totalPrice: { type: Number, required: true },
     advanceAmount: { type: Number, required: true },
-    paymentId: { type: String, required: true },
+    remainingAmount: { type: Number, required: true },
+    
+    // Payment tracking
+    advancePaymentId: { type: String, required: true },
+    remainingPaymentId: { type: String, default: null },
+    
     status: {
       type: String,
-      enum: ["Upcoming", "Completed", "Cancelled", "Awaiting Substitute"], // Naya status add kiya gaya
+      enum: ["Upcoming", "Completed", "Cancelled", "Awaiting Substitute"],
       default: "Upcoming",
     },
     paymentStatus: {
@@ -35,18 +38,15 @@ const bookingSchema = new mongoose.Schema(
       enum: ["Advance Paid", "Fully Paid", "Refunded"],
       default: "Advance Paid",
     },
+    
+    // Reminder tracking
+    reminderSent: { type: Boolean, default: false },
+    reminderSentAt: { type: Date, default: null },
+    
     cancelledBy: {
-      cancellerId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
-      cancellerRole: {
-        type: String,
-        enum: ["user", "guide", "admin"],
-      },
-      cancellerName: {
-        type: String,
-      },
+      cancellerId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      cancellerRole: { type: String, enum: ["user", "guide", "admin"] },
+      cancellerName: { type: String },
     },
     originalGuide: {
       type: mongoose.Schema.Types.ObjectId,
@@ -57,5 +57,4 @@ const bookingSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.models.Booking ||
-  mongoose.model("Booking", bookingSchema);
+export default mongoose.models.Booking || mongoose.model("Booking", bookingSchema);

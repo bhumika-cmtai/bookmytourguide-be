@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import connectDB from "./config/db.js";
+import cron from "node-cron";
+import { checkAndSendReminders } from "./utils/paymentReminder.js";
 
 // // Routers
 import packageRoutes from "./routes/Package.Routes.js";
@@ -13,14 +15,19 @@ import couponRoutes from "./routes/Coupons.Routes.js";
 import authRoutes from "./routes/Auth.Routes.js";
 import locationRoutes from "./routes/Location.routes.js";
 import languageRoutes from "./routes/Language.routes.js";
-import subscriptionRoutes from "./routes/Subscription.routes.js"; 
+import subscriptionRoutes from "./routes/Subscription.routes.js";
 // import guideRoutes from "./routes/Guide.routes.js";
-import guideRoutes from "./routes/Guide.routes.js"
-import bookingRoutes from './routes/booking.routes.js';
-import touguideRoutes from './routes/TourGuideBooking.routes.js'
-import userBookingRoutes from './routes/userBooking.routes.js'
+import guideRoutes from "./routes/Guide.routes.js";
+import bookingRoutes from "./routes/booking.routes.js";
+import touguideRoutes from "./routes/TourGuideBooking.routes.js";
+import userBookingRoutes from "./routes/userBooking.routes.js";
 import cookieParser from "cookie-parser";
 import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
+
+cron.schedule("0 10 * * *", () => {
+  console.log("⏰ Running daily payment reminder check...");
+  checkAndSendReminders();
+});
 
 dotenv.config();
 const app = express();
