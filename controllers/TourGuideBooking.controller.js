@@ -61,17 +61,9 @@ export const createBookingOrder = async (req, res) => {
   export const verifyAndCreateBooking = async (req, res) => {
     try {
       const {
-        razorpay_order_id,
-        razorpay_payment_id,
-        razorpay_signature,
-        guideId,
-        location,
-        language,
-        startDate,
-        endDate,
-        numberOfTravelers,
-        totalPrice,
-        contactInfo,
+        razorpay_order_id, razorpay_payment_id, razorpay_signature,
+        guideId, location, language, startDate, endDate,
+        numberOfTravelers, totalPrice, contactInfo,
       } = req.body;
   
       const body = razorpay_order_id + "|" + razorpay_payment_id;
@@ -81,56 +73,48 @@ export const createBookingOrder = async (req, res) => {
         return res.status(400).json({ success: false, message: "Invalid payment signature." });
       }
   
-      // --- FIXES ARE HERE ---
-      // 1. Advance amount ko 20% se calculate karein
       const advanceAmount = Math.round(totalPrice * 0.20);
-      // 2. Bachi hui amount (remainingAmount) calculate karein
       const remainingAmount = totalPrice - advanceAmount;
   
+      // Step 1: Booking create ho rahi hai
       const newBooking = await TourGuideBooking.create({
-        guide: guideId,
-        user: req.user.id,
-        location,
-        language,
-        startDate,
-        endDate,
-        numberOfTravelers,
-        totalPrice,
-        advanceAmount,
-        remainingAmount, // ✅ FIXED: Ab hum remainingAmount bhej rahe hain
-        razorpayOrderId: razorpay_order_id,
-        razorpayPaymentId: razorpay_payment_id,
-        razorpaySignature: razorpay_signature, // Optional, but good to have
-        contactInfo,
-        paymentStatus: "Advance Paid", // Initial status
+        guide: guideId, user: req.user.id, location, language, startDate, endDate,
+        numberOfTravelers, totalPrice, advanceAmount, remainingAmount,
+        razorpayOrderId: razorpay_order_id, razorpayPaymentId: razorpay_payment_id,
+        razorpaySignature: razorpay_signature, contactInfo, paymentStatus: "Advance Paid",
       });
   
-      // Guide ki availability update karne ka logic
+      // ✅✅✅ AAPKI REQUIREMENT YAHAN POORI HO RAHI HAI ✅✅✅
+      // Step 2: Guide ko dhoondh kar uski dates ko unavailable mark kiya ja raha hai
       const guide = await Guide.findById(guideId);
       if (guide) {
         const bookingDates = [];
         let currentDate = new Date(startDate);
         const lastDate = new Date(endDate);
+
+        // Start date se end date tak loop chalega
         while (currentDate <= lastDate) {
           bookingDates.push(new Date(currentDate));
           currentDate.setDate(currentDate.getDate() + 1);
         }
+
+        // Saari booking dates ko guide ke 'unavailableDates' array mein add kiya ja raha hai
         guide.unavailableDates.push(...bookingDates);
-        await guide.save();
+        await guide.save(); // Guide document ko save kiya ja raha hai
+        console.log(`Guide ${guide.name}'s availability updated for the new booking.`);
       }
   
       res.status(201).json({
         success: true,
-        message: "Booking confirmed successfully!",
+        message: "Booking confirmed and guide's calendar updated!",
         data: newBooking,
       });
   
     } catch (error) {
-      // Error ko detail mein log karein taaki debugging aasan ho
       console.error("ERROR VERIFYING BOOKING:", error);
       res.status(500).json({ success: false, message: error.message });
     }
-  };
+};
   
 
 
@@ -333,3 +317,122 @@ export const createFinalPaymentOrder = async (req, res) => {
       res.status(500).json({ success: false, message: error.message });
     }
   };
+
+
+  /**
+ * @desc    Get all bookings for a specific user with pagination
+ * @route   GET /api/tourguide/user-bookings
+ * @access  Private (for the logged-in user)
+ */
+export const getUserBookings = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const skip = (page - 1) * limit;
+
+    const userId = req.user.id; // Get user ID from the 'protect' middleware
+
+    const bookings = await TourGuideBooking.find({ user: userId })
+      .populate("guide", "name email photo")
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .skip(skip);
+
+    const totalBookings = await TourGuideBooking.countDocuments({ user: userId });
+    const totalPages = Math.ceil(totalBookings / limit);
+
+    res.status(200).json({
+      success: true,
+      count: bookings.length,
+      pagination: {
+        page,
+        totalPages,
+        totalBookings,
+      },
+      data: bookings,
+    });
+  } catch (error) {
+    console.error("Error fetching user bookings:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+export const reassignGuide = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { newGuideId } = req.body;
+
+    if (!newGuideId) {
+      return res.status(400).json({ success: false, message: "New guide ID is required." });
+    }
+
+    // 1. Find the booking
+    const booking = await TourGuideBooking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found." });
+    }
+
+    const oldGuideId = booking.guide;
+
+    // Prevent reassigning to the same guide
+    if (oldGuideId.toString() === newGuideId) {
+        return res.status(400).json({ success: false, message: "Cannot reassign to the same guide." });
+    }
+
+    // 2. Find the old and new guides
+    const [oldGuide, newGuide] = await Promise.all([
+      Guide.findById(oldGuideId),
+      Guide.findById(newGuideId)
+    ]);
+
+    if (!newGuide) {
+      return res.status(404).json({ success: false, message: "New guide not found." });
+    }
+
+    // 3. Prepare booking dates for availability update
+    const bookingDates = [];
+    let currentDate = new Date(booking.startDate);
+    const lastDate = new Date(booking.endDate);
+    while (currentDate <= lastDate) {
+      bookingDates.push(new Date(currentDate));
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    // 4. Free up the old guide's calendar
+    if (oldGuide) {
+      const bookingStartMs = new Date(booking.startDate).getTime();
+      const bookingEndMs = new Date(booking.endDate).getTime();
+      oldGuide.unavailableDates = oldGuide.unavailableDates.filter(date => {
+        const unavailableTimeMs = new Date(date).getTime();
+        return unavailableTimeMs < bookingStartMs || unavailableTimeMs > bookingEndMs;
+      });
+      await oldGuide.save();
+    }
+
+    // 5. Block the new guide's calendar
+    newGuide.unavailableDates.push(...bookingDates);
+    await newGuide.save();
+
+    // 6. Update the booking document
+    booking.originalGuide = oldGuideId; // Save the original guide's ID
+    booking.guide = newGuideId;       // Assign the new guide
+    await booking.save();
+    
+    // 7. Populate the updated booking to send back to the frontend
+    const updatedBooking = await TourGuideBooking.findById(bookingId)
+      .populate('guide', 'name email')
+      .populate('user', 'name email')
+      .populate('originalGuide', 'name email');
+
+    res.status(200).json({
+      success: true,
+      message: "Guide reassigned successfully!",
+      data: updatedBooking,
+    });
+
+  } catch (error) {
+    console.error("Error reassigning guide:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

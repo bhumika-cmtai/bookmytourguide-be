@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 const tourGuideBookingSchema = new mongoose.Schema(
   {
     guide: { type: mongoose.Schema.Types.ObjectId, ref: "Guide", required: true },
+    originalGuide:  { type: mongoose.Schema.Types.ObjectId, ref: "Guide" },
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     location: { type: String, required: true, trim: true },
     language: { type: String, required: true, trim: true },

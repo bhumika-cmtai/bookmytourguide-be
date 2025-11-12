@@ -59,6 +59,7 @@ const guideSchema = new mongoose.Schema(
     subscriptionExpiresAt: {
       type: Date, // The date when the certification expires
     },
+    originalGuide: { type: mongoose.Schema.Types.ObjectId, ref: "Guide" }, 
 
     profileComplete: { type: Boolean, default: false },
   },

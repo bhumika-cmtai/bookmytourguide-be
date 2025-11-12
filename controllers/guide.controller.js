@@ -1,4 +1,5 @@
 import Guide from "../models/Guides.Model.js"; // Corrected model import path
+import TourGuideBooking from "../models/TourGuideBooking.model.js";
 import User from "../models/Users.model.js"; // Corrected model import path
 import Location from "../models/Location.Model.js"; 
 import Language from "../models/Language.Model.js"; 
@@ -173,6 +174,55 @@ export const getAllGuides = async (req, res) => {
   }
 };
 
+export const adminGetAllGuides = async (req, res) => {
+  try {
+    // 1. Destructure query parameters with defaults for pagination
+    const { location, language, page = 1, limit = 20 } = req.query;
+
+    // 2. Build a dynamic filter object
+    const filter = {};
+
+    // If a location is provided, add it to the filter using a case-insensitive regex
+    if (location) {
+      filter.serviceLocations = { $regex: new RegExp(`^${location}$`, 'i') };
+    }
+
+    // If a language is provided, add it to the filter using a case-insensitive regex
+    if (language) {
+      filter.languages = { $regex: new RegExp(`^${language}$`, 'i') };
+    }
+    
+    // 3. Setup pagination
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    // 4. Execute the query WITH the filter object
+    const guides = await Guide.find(filter)
+      .populate('user', 'name email role')
+      .sort({ createdAt: -1 })
+      .limit(limitNum)
+      .skip(skip);
+
+    // 5. Get the total count of documents that match the filter for pagination
+    const total = await Guide.countDocuments(filter);
+
+    // 6. Send the response with pagination data
+    res.status(200).json({
+      success: true,
+      count: guides.length,
+      total,
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum),
+      data: guides,
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
 
 // 🔥 NEW FUNCTION: Approve or reject a guide profile (Admin only)
 // @desc    Update a guide's approval status
@@ -329,4 +379,84 @@ export const getGuidePricingDetails = async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
+};
+
+
+/**
+ * @desc    Get bookings for the logged-in guide
+ * @route   GET /api/guides/my-bookings
+ * @access  Private/Guide
+ */
+export const getMyBookings = async (req, res) => {
+  // We need to find the Guide Profile ID from the authenticated User ID.
+  // The 'protect' middleware should give us req.user._id.
+  try{
+
+    const guideProfile = await Guide.findOne({ user: req.user._id });
+    
+    if (!guideProfile) {
+      res.status(404);
+      throw new Error('Guide profile not found for the logged-in user.');
+    }
+    
+    // Find all bookings assigned to this guide's profile ID
+    const bookings = await TourGuideBooking.find({ guide: guideProfile._id })
+    .populate('user', 'name email') // Populate the user's name and email
+    .sort({ startDate: -1 }); // Sort by newest first
+    
+    if (bookings) {
+      res.json(bookings);
+    } else {
+      res.status(404);
+      throw new Error('Could not find any bookings for this guide.');
+    }
+  }catch(error){
+    console.error("Error finding booking:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+/**
+ * @desc    Get a single booking by ID for the logged-in guide
+ * @route   GET /api/guides/my-bookings/:bookingId
+ * @access  Private (Guide Only)
+ */
+export const getMyBookingById = async (req, res) => {
+  // Step 1: Get the booking ID from the URL parameters.
+  const { bookingId } = req.params;
+
+  // Step 2: Find the Guide Profile ID from the authenticated user's ID.
+  // The 'protect' middleware provides `req.user`.
+  try{
+
+    const guideProfile = await Guide.findOne({ user: req.user._id });
+    
+    if (!guideProfile) {
+      res.status(404);
+      throw new Error('Guide profile not found for the logged-in user.');
+    }
+    
+    // Step 3: Find the booking in the database with two conditions:
+    // - The booking ID must match the one from the URL.
+    // - The 'guide' field in the booking must match the logged-in guide's profile ID.
+    // This is the critical security check.
+    const booking = await TourGuideBooking.findOne({
+      _id: bookingId,
+      guide: guideProfile._id, // Ensures the booking belongs to this guide
+    }).populate('user', 'name email'); // Also fetch the tourist's name and email
+    
+    // Step 4: Respond
+    if (booking) {
+    // If a booking is found that matches both conditions, send it.
+    res.status(200).json(booking);
+  } else {
+    // If no booking is found, it either doesn't exist or the guide doesn't have permission.
+    // We send a 404 for security reasons (to not reveal its existence).
+    res.status(404);
+    throw new Error('Booking not found.');
+  }
+}catch(error){
+  console.error(error)
+}
 };

@@ -6,7 +6,10 @@ import {
   updateGuideAvailability,
   getGuideById,
   getAllGuides,
-  getGuidePricingDetails
+  getGuidePricingDetails,
+  adminGetAllGuides,
+  getMyBookings,
+  getMyBookingById 
 } from "../controllers/guide.controller.js";
 import { protect, authorize } from "../middleware/authMiddleware.js"; // Assuming you have these
 import { upload } from "../middleware/s3.uploads.js"; // Correct path to your s3 uploader
@@ -43,6 +46,9 @@ router.patch(
 );
 
 router.get("/all", getAllGuides);
+router.get('/my-bookings', protect, getMyBookings);
+router.get("/all-guides/", adminGetAllGuides);
+router.get('/my-bookings/:bookingId', protect, getMyBookingById);
 router.get("/:id/pricing-details", getGuidePricingDetails)
 
 router.get("/:id", getGuideById);
