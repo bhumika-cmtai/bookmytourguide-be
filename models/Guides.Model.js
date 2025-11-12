@@ -19,7 +19,8 @@ const guideSchema = new mongoose.Schema(
     age: { type: Number },
 
     // Professional info
-    languages: [{ type: String, trim: true }],
+    languages: [{ type: String, trim: true }], // ✅ CHANGED: Store language names directly
+    serviceLocations: [{ type: String, trim: true }],
     experience: { type: String, trim: true },
     specializations: [{ type: String, trim: true }],
     // availability: [{ type: String, trim: true }],
