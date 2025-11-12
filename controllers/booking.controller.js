@@ -170,7 +170,11 @@ export const createRemainingPaymentOrder = async (req, res) => {
     }
     res.status(200).json({ success: true, data: order });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.log("ERROR CREATING REMAINING PAYMENT ORDER:", error); 
+      res.status(500).json({ 
+      success: false, 
+      message: error.message || "An internal server error occurred while creating the payment order." 
+    });
   }
 };
 
