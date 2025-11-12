@@ -23,6 +23,7 @@ import touguideRoutes from "./routes/TourGuideBooking.routes.js";
 import userBookingRoutes from "./routes/userBooking.routes.js";
 import cookieParser from "cookie-parser";
 import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
+import customTourRequestRoutes from "./routes/customTourRequest.routes.js";
 
 cron.schedule("0 10 * * *", () => {
   console.log("⏰ Running daily payment reminder check...");
@@ -70,6 +71,7 @@ app.use("/api/bookings", bookingRoutes);
 app.use("/api/tourguide", touguideRoutes);
 app.use("/api/userBooking", userBookingRoutes);
 app.use("/uploads", express.static("uploads"));
+app.use("/api/custom-tour-requests", customTourRequestRoutes);
 
 //Middleware for handling errors:
 app.use(notFound);
