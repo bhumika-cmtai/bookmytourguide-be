@@ -32,7 +32,13 @@ const upload = multer({
         folder = 'guides/licenses';
       } else if (file.fieldname === 'video') {
         folder = 'testimonials/videos';
-      } else {
+      } else if (file.fieldname === 'images') {
+        folder = 'packages/images';
+      // ✅ FIX: Add a condition to handle the 'image' fieldname for locations
+      } else if (file.fieldname === 'image') { 
+        folder = 'locations/images';
+      }
+      else {
         folder = 'uploads'; // fallback
       }
       
@@ -62,10 +68,8 @@ const upload = multer({
       const extname = allowedLicenseTypes.test(path.extname(file.originalname).toLowerCase());
       
       if (mimetype && extname) {
-        console.log(cb(null, true))
         return cb(null, true);
       }
-      console.log("Error: Only images or PDFs are allowed for licenses")
       return cb(new Error("Error: Only images or PDFs are allowed for licenses."));
       
     } else if (file.fieldname === 'video') {
@@ -75,13 +79,33 @@ const upload = multer({
       const extname = allowedVideoTypes.test(path.extname(file.originalname).toLowerCase());
       
       if (mimetype && extname) {
-        console.log(cb(null, true))
         return cb(null, true);
       }
-      console.log("Error: Only video files (MP4, MOV, WEBM, etc.) are allowed")
       return cb(new Error("Error: Only video files (MP4, MOV, WEBM, etc.) are allowed."));
-      
-    } else {
+
+    } else if (file.fieldname === 'images') {
+        const allowedImageTypes = /jpeg|jpg|png|gif|webp/;
+        const mimetype = allowedImageTypes.test(file.mimetype);
+        const extname = allowedImageTypes.test(path.extname(file.originalname).toLowerCase());
+        
+        if (mimetype && extname) {
+          return cb(null, true); 
+        }
+        return cb(new Error("Error: Only image files (jpeg, jpg, png, gif, webp) are allowed for package images."));
+    
+    // ✅ FIX: Add the file filter logic for the 'image' fieldname
+    } else if (file.fieldname === 'image') {
+        const allowedImageTypes = /jpeg|jpg|png|gif|webp/;
+        const mimetype = allowedImageTypes.test(file.mimetype);
+        const extname = allowedImageTypes.test(path.extname(file.originalname).toLowerCase());
+        
+        if (mimetype && extname) {
+          return cb(null, true); // Allow upload
+        }
+        return cb(new Error("Error: Only image files are allowed for location images."));
+    }
+    
+    else {
       // For any other field, reject
       console.log("Error: Unsupported field type")
       return cb(new Error("Error: Unsupported field type."));
