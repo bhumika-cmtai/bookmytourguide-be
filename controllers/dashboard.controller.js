@@ -1,7 +1,7 @@
 import User from "../models/Users.Model.js";
 import Guide from "../models/Guides.Model.js";
 import Booking from "../models/booking.model.js";
-import TourGuideBooking from "../models/TourGuideBooking.model.js"; // Corrected filename
+import TourGuideBooking from "../models/TourGuideBooking.Model.js"; // Corrected filename
 import CustomTourRequest from "../models/customTourRequest.model.js";
 
 // Helper function to handle errors

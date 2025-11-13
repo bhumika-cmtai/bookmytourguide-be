@@ -1,7 +1,7 @@
 // controllers/tourguidebook.controller.js
 import Razorpay from "razorpay";
 import crypto from "crypto";
-import TourGuideBooking from "../models/TourGuideBooking.model.js";
+import TourGuideBooking from "../models/TourGuideBooking.Model.js";
 import Guide from "../models/Guides.Model.js";
 
 const razorpay = new Razorpay({

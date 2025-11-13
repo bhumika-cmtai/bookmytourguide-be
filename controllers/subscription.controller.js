@@ -2,7 +2,7 @@
 import Subscription from "../models/Subscription.Model.js";
 import Razorpay from "razorpay";
 import crypto from "crypto";
-import Guide from "../models/guides.model.js"; // Correct path to your guide model
+import Guide from "../models/Guides.Model.js"; // Correct path to your guide model
 import User from "../models/Users.Model.js";
 
 
