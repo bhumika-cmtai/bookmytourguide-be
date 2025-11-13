@@ -1,6 +1,6 @@
 // utils/tourGuidePaymentReminder.js
 import cron from 'node-cron';
-import TourGuideBooking from '../models/TourGuideBooking.model.js';
+import TourGuideBooking from '../models/TourGuideBooking.Model.js';
 import { sendEmail } from './sendEmail.js'; // Assuming you have a generic sendEmail utility
 
 const sendTourGuideReminderEmail = async (booking) => {
