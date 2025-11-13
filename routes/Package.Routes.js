@@ -5,6 +5,7 @@ import {
   getPackageById,
   updatePackage,
   deletePackage,
+  getRecommendedPackages 
 } from "../controllers/package.controller.js";
 import { upload } from "../middleware/s3.uploads.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
@@ -25,6 +26,11 @@ router.post(
   createPackage
 );
 
+// @route   GET /api/packages/recommended
+// @desc    Get a list of recommended packages
+// @access  Public
+router.get("/recommended", getRecommendedPackages);
+
 router.put(
   "/:id",
   protect,
@@ -32,6 +38,7 @@ router.put(
   upload.array("images", 5), // .array() for multiple files
   updatePackage
 );
+
 
 router.delete("/:id", protect, authorize("admin"), deletePackage);
 

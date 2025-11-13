@@ -158,3 +158,92 @@ export const deletePackage = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/**
+ * @desc    Get recommended packages based on a scoring system
+ * @route   GET /api/packages/recommended
+ * @access  Public
+ */
+export const getRecommendedPackages = async (req, res) => {
+  try {
+    // Hum kitne packages recommend karna chahte hain (default 6)
+    const limit = parseInt(req.query.limit) || 6;
+
+    // 1. Sabse pehle, admin dwara 'Featured' kiye gaye packages nikalein
+    const featuredPackages = await Package.find({
+      isFeatured: true,
+      isActive: true,
+    }).limit(limit);
+
+    // Ek Set banayein taaki duplicate packages na aayein
+    const recommendedIds = new Set(featuredPackages.map(p => p._id.toString()));
+    let recommendedPackages = [...featuredPackages];
+
+    // 2. Agar featured packages se limit poori nahi hui, to sabse popular (most booked) packages nikalein
+    if (recommendedPackages.length < limit) {
+      const popularPackages = await Booking.aggregate([
+        // Stage 1: Bookings ko tour ID se group karein aur count karein
+        {
+          $group: {
+            _id: "$tour", // 'tour' field (jo package ko refer karta hai) se group karein
+            bookingCount: { $sum: 1 },
+          },
+        },
+        // Stage 2: Count ke hisaab se descending order mein sort karein
+        { $sort: { bookingCount: -1 } },
+        // Stage 3: Package collection se details join karein
+        {
+          $lookup: {
+            from: "packages", // "packages" aapke collection ka naam hai
+            localField: "_id",
+            foreignField: "_id",
+            as: "packageDetails",
+          },
+        },
+        // Stage 4: Jo packages active hain, sirf unhein rakhein
+        {
+          $match: {
+            "packageDetails.isActive": true,
+          },
+        },
+        // Stage 5: Array se object mein convert karein
+        {
+          $unwind: "$packageDetails",
+        },
+        // Stage 6: Sirf zaroori package details return karein
+        {
+          $replaceRoot: { newRoot: "$packageDetails" }
+        },
+      ]).limit(limit);
+
+      // Popular packages ko list mein add karein, duplicates ko ignore karein
+      popularPackages.forEach(pkg => {
+        if (recommendedPackages.length < limit && !recommendedIds.has(pkg._id.toString())) {
+          recommendedPackages.push(pkg);
+          recommendedIds.add(pkg._id.toString());
+        }
+      });
+    }
+
+    // 3. Agar ab bhi limit poori nahi hui, to sabse naye packages add karein
+    if (recommendedPackages.length < limit) {
+      const newPackages = await Package.find({
+        isActive: true,
+        _id: { $nin: Array.from(recommendedIds) }, // Jo pehle se list mein hain unhein na laayein
+      })
+      .sort({ createdAt: -1 }) // Sabse naye pehle
+      .limit(limit - recommendedPackages.length);
+
+      recommendedPackages.push(...newPackages);
+    }
+    
+    res.status(200).json({
+      success: true,
+      count: recommendedPackages.length,
+      data: recommendedPackages,
+    });
+  } catch (error) {
+    console.error("Error fetching recommended packages:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};

@@ -37,6 +37,9 @@ const customTourRequestSchema = new mongoose.Schema(
       enum: ["Pending", "Quoted", "Booked", "Rejected"],
       default: "Pending",
     },
+    quoteAmount: { type: Number, default: 0 },
+    adminComment: { type: String, trim: true },
+
   },
   { timestamps: true }
 );

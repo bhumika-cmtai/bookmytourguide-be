@@ -78,25 +78,36 @@ export const getRequestById = async (req, res) => {
   }
 };
 
+
 export const updateRequestStatus = async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, quoteAmount, adminComment } = req.body;
     const allowedStatuses = ["Pending", "Quoted", "Booked", "Rejected"];
+
     if (!status || !allowedStatuses.includes(status)) {
       return res
         .status(400)
         .json({ success: false, message: "Invalid status value" });
     }
+
+    const updateData = { status };
+    if (status === "Quoted") {
+      updateData.quoteAmount = quoteAmount;
+      updateData.adminComment = adminComment;
+    }
+
     const updatedRequest = await CustomTourRequest.findByIdAndUpdate(
       req.params.id,
-      { status },
+      updateData,
       { new: true }
     );
+
     if (!updatedRequest) {
       return res
         .status(404)
         .json({ success: false, message: "Request not found" });
     }
+
     res.status(200).json({
       success: true,
       message: `Status updated to ${status}`,
@@ -106,6 +117,7 @@ export const updateRequestStatus = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 export const deleteRequest = async (req, res) => {
   try {

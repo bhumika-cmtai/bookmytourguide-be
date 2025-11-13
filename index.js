@@ -27,6 +27,7 @@ import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
 import { scheduleTourGuideReminders } from './utils/tourGuidePaymentReminder.js';
 
 import customTourRequestRoutes from "./routes/customTourRequest.routes.js";
+import dashboardRoutes from "./routes/dashboard.routes.js"; 
 
 
 cron.schedule("0 10 * * *", () => {
@@ -77,6 +78,7 @@ app.use("/api/tourguide", touguideRoutes);
 app.use("/api/userBooking", userBookingRoutes);
 app.use("/uploads", express.static("uploads"));
 app.use("/api/custom-tour-requests", customTourRequestRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 //Middleware for handling errors:
 app.use(notFound);
