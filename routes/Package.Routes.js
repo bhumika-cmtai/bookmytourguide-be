@@ -14,6 +14,8 @@ const router = express.Router();
 
 // --- PUBLIC ROUTES ---
 router.get("/", getAllPackages);
+router.get("/recommended", getRecommendedPackages);
+
 router.get("/:id", getPackageById);
 
 // --- ADMIN ONLY ROUTES ---
@@ -29,7 +31,6 @@ router.post(
 // @route   GET /api/packages/recommended
 // @desc    Get a list of recommended packages
 // @access  Public
-router.get("/recommended", getRecommendedPackages);
 
 router.put(
   "/:id",

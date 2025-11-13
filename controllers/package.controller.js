@@ -1,6 +1,7 @@
 // controllers/package.controller.js
 import Package from "../models/Package.Model.js";
 import dotenv from "dotenv";
+import Booking from "../models/booking.model.js"
 import { S3Client, DeleteObjectsCommand } from "@aws-sdk/client-s3";
 
 dotenv.config();
