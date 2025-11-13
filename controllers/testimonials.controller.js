@@ -1,4 +1,4 @@
-import Testimonial from "../models/testimonial.model.js";
+import Testimonial from "../models/Testimonial.Model.js";
 import aws from "aws-sdk";
 
 // Configure S3 client for deletion
