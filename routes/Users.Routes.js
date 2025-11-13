@@ -12,7 +12,7 @@ import {
   listGuides,
 } from "../controllers/user.controller.js";
 import { authorize, protect } from "../middleware/authMiddleware.js";
-import { upload } from "../middleware/uploads.js";
+import { upload } from "../middleware/s3.uploads.js";
 
 const router = express.Router();
 
