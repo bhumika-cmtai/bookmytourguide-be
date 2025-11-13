@@ -1,5 +1,5 @@
 // auth.controller.js
-import User from "../models/Users.model.js";
+import User from "../models/Users.Model.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";

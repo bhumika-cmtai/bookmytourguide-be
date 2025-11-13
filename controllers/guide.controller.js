@@ -1,6 +1,6 @@
 import Guide from "../models/Guides.Model.js"; // Corrected model import path
-import TourGuideBooking from "../models/TourGuideBooking.model.js";
-import User from "../models/Users.model.js"; // Corrected model import path
+import TourGuideBooking from "../models/TourGuideBooking.Model.js";
+import User from "../models/Users.Model.js"; // Corrected model import path
 import Location from "../models/Location.Model.js"; 
 import Language from "../models/Language.Model.js"; 
 
