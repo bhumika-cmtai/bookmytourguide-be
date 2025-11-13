@@ -11,7 +11,7 @@ import {
   verifyFinalPayment,
   cancelBookingAndProcessRefund, 
   getUserBookings,
-  reassignGuide
+  reassignGuide,
 } from "../controllers/TourGuideBooking.controller.js";
 import { protect } from "../middleware/authMiddleware.js";
 

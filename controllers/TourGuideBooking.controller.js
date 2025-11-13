@@ -254,69 +254,69 @@ export const deleteBooking = async (req, res) => {
 };
 
 export const createFinalPaymentOrder = async (req, res) => {
-    try {
-      const booking = await TourGuideBooking.findById(req.params.id);
-  
-      if (!booking) {
-        return res.status(404).json({ success: false, message: "Booking not found." });
-      }
-      if (booking.paymentStatus !== "Advance Paid") {
-        return res.status(400).json({ success: false, message: `Payment cannot be processed. Current status is '${booking.paymentStatus}'.` });
-      }
-  
-      const options = {
-        amount: booking.remainingAmount * 100,
-        currency: "INR",
-        receipt: `receipt_booking_final_${booking._id}`,
-      };
-  
-      const order = await razorpay.orders.create(options);
-  
-      // Order ID ko booking mein save karlein taaki verify kar sakein
-      booking.finalPaymentRazorpayOrderId = order.id;
-      await booking.save();
-  
-      res.status(201).json({ success: true, data: order });
-  
-    } catch (error) {
-      res.status(500).json({ success: false, message: error.message });
+  try {
+    const booking = await TourGuideBooking.findById(req.params.id);
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found." });
     }
-  };
-  
-  
-  // 🔥 NAYA FUNCTION: Final payment ko verify karna aur booking update karna
-  export const verifyFinalPayment = async (req, res) => {
-    try {
-      const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-      const booking = await TourGuideBooking.findById(req.params.id);
-  
-      if (!booking) {
-        return res.status(404).json({ success: false, message: "Booking not found." });
-      }
-      // Security check: Verify karein ki order ID match ho rahi hai
-      if (booking.finalPaymentRazorpayOrderId !== razorpay_order_id) {
-          return res.status(400).json({ success: false, message: "Order ID does not match." });
-      }
-      
-      // Razorpay signature verify karein
-      const body = razorpay_order_id + "|" + razorpay_payment_id;
-      const expectedSignature = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET).update(body.toString()).digest("hex");
-      if (expectedSignature !== razorpay_signature) {
-        return res.status(400).json({ success: false, message: "Invalid payment signature." });
-      }
-      
-      // Sab theek hai, to booking update karein
-      booking.paymentStatus = "Fully Paid";
-      booking.remainingAmount = 0;
-      booking.finalPaymentRazorpayPaymentId = razorpay_payment_id;
-      await booking.save();
-      
-      res.status(200).json({ success: true, message: "Full payment successful! Your booking is fully paid.", data: booking });
-  
-    } catch (error) {
-      res.status(500).json({ success: false, message: error.message });
+    if (booking.paymentStatus !== "Advance Paid") {
+      return res.status(400).json({ success: false, message: `Payment cannot be processed. Current status is '${booking.paymentStatus}'.` });
     }
-  };
+
+    const options = {
+      amount: booking.remainingAmount * 100,
+      currency: "INR",
+      receipt: `rem_${booking._id}`,
+    };
+
+    const order = await razorpay.orders.create(options);
+
+    // Order ID ko booking mein save karlein taaki verify kar sakein
+    booking.finalPaymentRazorpayOrderId = order.id;
+    await booking.save();
+
+    res.status(201).json({ success: true, data: order });
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+// 🔥 NAYA FUNCTION: Final payment ko verify karna aur booking update karna
+export const verifyFinalPayment = async (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    const booking = await TourGuideBooking.findById(req.params.id);
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found." });
+    }
+    // Security check: Verify karein ki order ID match ho rahi hai
+    if (booking.finalPaymentRazorpayOrderId !== razorpay_order_id) {
+        return res.status(400).json({ success: false, message: "Order ID does not match." });
+    }
+    
+    // Razorpay signature verify karein
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
+    const expectedSignature = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET).update(body.toString()).digest("hex");
+    if (expectedSignature !== razorpay_signature) {
+      return res.status(400).json({ success: false, message: "Invalid payment signature." });
+    }
+    
+    // Sab theek hai, to booking update karein
+    booking.paymentStatus = "Fully Paid";
+    booking.remainingAmount = 0;
+    booking.finalPaymentRazorpayPaymentId = razorpay_payment_id;
+    await booking.save();
+    
+    res.status(200).json({ success: true, message: "Full payment successful! Your booking is fully paid.", data: booking });
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 
   /**

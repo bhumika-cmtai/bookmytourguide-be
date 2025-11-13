@@ -30,7 +30,7 @@ router.get("/my-bookings", protect, getMyBookings);
 router.get("/guide-bookings", protect, getGuideBookings);
 
 // --- GENERAL GET Route ---
-router.get("/", protect, getAllBookings);
+router.get("/all", protect, getAllBookings);
 
 // --- UPDATE & ACTION Routes ---
 router.patch("/:id/status", protect, updateBookingStatus);

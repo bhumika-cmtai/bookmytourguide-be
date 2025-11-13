@@ -22,6 +22,15 @@ const tourGuideBookingSchema = new mongoose.Schema(
       default: "Upcoming",
     },
     remainingAmount: { type: Number, required: true },
+    reminderSent: { 
+      type: Boolean, 
+      default: false 
+    },
+    reminderSentAt: { 
+      type: Date, 
+      default: null 
+    },
+
     paymentStatus: {
       type: String,
       enum: ["Advance Paid", "Fully Paid", "Refunded"],

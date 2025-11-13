@@ -23,9 +23,10 @@ import touguideRoutes from "./routes/TourGuideBooking.routes.js";
 import userBookingRoutes from "./routes/userBooking.routes.js";
 import cookieParser from "cookie-parser";
 import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
-
+import { scheduleTourGuideReminders } from './utils/tourGuidePaymentReminder.js';
 cron.schedule("0 10 * * *", () => {
   console.log("⏰ Running daily payment reminder check...");
+  scheduleTourGuideReminders();
   checkAndSendReminders();
 });
 

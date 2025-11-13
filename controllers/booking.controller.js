@@ -85,10 +85,10 @@ export const verifyPaymentAndCreateBooking = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Tour or Guide not found." });
     }
-
     const totalPrice = tour.price * parseInt(numberOfTourists);
     const advanceAmount = totalPrice * 0.2;
     const remainingAmount = totalPrice * 0.8;
+
     const bookingDates = getDatesInRange(startDate, endDate);
 
     const isAlreadyBooked = guide.unavailableDates.some((date) =>
@@ -142,6 +142,9 @@ export const createRemainingPaymentOrder = async (req, res) => {
     const userId = req.user.id;
     const booking = await Booking.findById(bookingId);
 
+    // console.log("bookingId", bookingId)
+    // console.log("userId", userId)
+    // console.log("booking", booking)
     if (!booking) {
       return res.status(404).json({ success: false, message: "Booking not found." });
     }
@@ -162,7 +165,7 @@ export const createRemainingPaymentOrder = async (req, res) => {
     const options = {
       amount: Math.round(booking.remainingAmount * 100),
       currency: "INR",
-      receipt: `receipt_remaining_${bookingId}`,
+      receipt: `rem_${bookingId}`,
     };
     const order = await instance.orders.create(options);
     if (!order) {
