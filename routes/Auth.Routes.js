@@ -6,7 +6,7 @@ import {
   verifyOtpAndRegister,
   refreshToken,
 } from "../controllers/auth.controller.js";
-import { upload } from "../middleware/uploads.js";
+import { upload } from "../middleware/s3.uploads.js";
 import { sendOtp } from "../controllers/Otp.controller.js";
 import { protect } from "../middleware/authMiddleware.js";
 
