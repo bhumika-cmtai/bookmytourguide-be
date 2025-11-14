@@ -42,7 +42,11 @@ const app = express();
 // Middleware
 app.use(
   cors({
-    origin: "http://localhost:3000" || "https://bookmytourguide-fe.vercel.app" || "bookmytourguide-fe.vercel.app",
+    origin: [
+      "http://localhost:3000",
+      "https://bookmytourguide-fe.vercel.app",
+      "bookmytourguide-fe.vercel.app"
+    ],
     credentials: true,
     optionsSuccessStatus: 200,
   })

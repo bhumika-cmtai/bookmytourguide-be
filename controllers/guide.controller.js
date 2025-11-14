@@ -125,25 +125,46 @@ export const updateGuideProfile = async (req, res) => {
 
 export const getAllGuides = async (req, res) => {
   try {
+    // 🔥 START: New logic to handle expired subscriptions
+    const now = new Date();
+
+    // Find guides with expired subscriptions and reset their certified status
+    await Guide.updateMany(
+      {
+        isCertified: true,
+        subscriptionExpiresAt: { $lt: now },
+      },
+      {
+        $set: {
+          isCertified: false,
+          subscriptionId: null,
+          subscriptionPlan: null,
+          subscriptionExpiresAt: null,
+        },
+      }
+    );
+    // 🔥 END: New logic
+
     // 1. Destructure query parameters with defaults for pagination
     const { location, language, page = 1, limit = 20 } = req.query;
 
-    // 2. Build a dynamic filter object
+    // 2. Build a dynamic filter object, now including isCertified
     const filter = {
       isApproved: true,
       profileComplete: true,
+      isCertified: true, // ✅ Only fetch certified guides
     };
 
     // If a location is provided, add it to the filter using a case-insensitive regex
     if (location) {
-      filter.serviceLocations = { $regex: new RegExp(`^${location}$`, 'i') };
+      filter.serviceLocations = { $regex: new RegExp(`^${location}$`, "i") };
     }
 
     // If a language is provided, add it to the filter using a case-insensitive regex
     if (language) {
-      filter.languages = { $regex: new RegExp(`^${language}$`, 'i') };
+      filter.languages = { $regex: new RegExp(`^${language}$`, "i") };
     }
-    
+
     // 3. Setup pagination
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
@@ -151,7 +172,7 @@ export const getAllGuides = async (req, res) => {
 
     // 4. Execute the query WITH the filter object
     const guides = await Guide.find(filter)
-      .populate('user', 'name email role')
+      .populate("user", "name email role")
       .sort({ createdAt: -1 })
       .limit(limitNum)
       .skip(skip);
@@ -168,7 +189,6 @@ export const getAllGuides = async (req, res) => {
       totalPages: Math.ceil(total / limitNum),
       data: guides,
     });
-
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

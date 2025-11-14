@@ -85,9 +85,12 @@ const getGuideStats = async (req, res) => {
             completedTourGuideBookings,
             upcomingTourGuideBookings,
             profileStatus: {
-                isApproved: guideProfile.isApproved,
-                profileComplete: guideProfile.profileComplete,
-            },
+              isApproved: guideProfile.isApproved,
+              profileComplete: guideProfile.profileComplete,
+              isCertified: guideProfile.isCertified, // Now included
+              subscriptionPlan: guideProfile.subscriptionPlan, // Now included
+              subscriptionExpiresAt: guideProfile.subscriptionExpiresAt, // Now included
+          },
         },
     });
   } catch (error) {
