@@ -6,111 +6,118 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// Configure the S3 client
+// ------------------------------
+// S3 Client
+// ------------------------------
 const s3 = new S3Client({
+  region: process.env.AWS_S3_REGION,
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   },
-  region: process.env.AWS_S3_REGION,
 });
 
-const upload = multer({
-  storage: multerS3({
-    s3: s3,
-    bucket: process.env.AWS_BUCKET_NAME,
-    metadata: function (req, file, cb) {
-      cb(null, { fieldName: file.fieldname });
-    },
-    key: function (req, file, cb) {
-      // Create a more organized folder structure in S3 based on field name
-      let folder;
-      
-      if (file.fieldname === 'photo') {
-        folder = 'guides/photos';
-      } else if (file.fieldname === 'license') {
-        folder = 'guides/licenses';
-      } else if (file.fieldname === 'video') {
-        folder = 'testimonials/videos';
-      } else if (file.fieldname === 'images') {
-        folder = 'packages/images';
-      // ✅ FIX: Add a condition to handle the 'image' fieldname for locations
-      } else if (file.fieldname === 'image') { 
-        folder = 'locations/images';
-      }
-      else {
-        folder = 'uploads'; // fallback
-      }
-      
-      const fileName = `${folder}/${Date.now().toString()}${path.extname(
-        file.originalname
-      )}`;
-      cb(null, fileName);
-    },
-  }),
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
-  fileFilter: (req, file, cb) => {
-    // Define allowed types based on field name
-    console.log("file.fieldname", file.fieldname)
-    if (file.fieldname === 'photo') {
-      const allowedImageTypes = /jpeg|jpg|png|gif|webp/;
-      const mimetype = allowedImageTypes.test(file.mimetype);
-      const extname = allowedImageTypes.test(path.extname(file.originalname).toLowerCase());
-      
-      if (mimetype && extname) {
-        return cb(null, true);
-      }
-      return cb(new Error("Error: Only image files are allowed for photos."));
-      
-    } else if (file.fieldname === 'license') {
-      const allowedLicenseTypes = /jpeg|jpg|png|pdf/;
-      const mimetype = allowedLicenseTypes.test(file.mimetype);
-      const extname = allowedLicenseTypes.test(path.extname(file.originalname).toLowerCase());
-      
-      if (mimetype && extname) {
-        return cb(null, true);
-      }
-      return cb(new Error("Error: Only images or PDFs are allowed for licenses."));
-      
-    } else if (file.fieldname === 'video') {
-      const allowedVideoTypes = /mp4|mov|avi|webm|mkv/;
-      const videoMimeTypes = /video\/(mp4|quicktime|x-msvideo|webm|x-matroska)/;
-      const mimetype = videoMimeTypes.test(file.mimetype);
-      const extname = allowedVideoTypes.test(path.extname(file.originalname).toLowerCase());
-      
-      if (mimetype && extname) {
-        return cb(null, true);
-      }
-      return cb(new Error("Error: Only video files (MP4, MOV, WEBM, etc.) are allowed."));
+// ------------------------------
+// Allowed File Types
+// ------------------------------
+const allowedImageTypes = /jpeg|jpg|png|gif|webp/;
+const allowedVideoTypes = /mp4|mov|avi|mkv/;
 
-    } else if (file.fieldname === 'images') {
-        const allowedImageTypes = /jpeg|jpg|png|gif|webp/;
-        const mimetype = allowedImageTypes.test(file.mimetype);
-        const extname = allowedImageTypes.test(path.extname(file.originalname).toLowerCase());
-        
-        if (mimetype && extname) {
-          return cb(null, true); 
-        }
-        return cb(new Error("Error: Only image files (jpeg, jpg, png, gif, webp) are allowed for package images."));
-    
-    // ✅ FIX: Add the file filter logic for the 'image' fieldname
-    } else if (file.fieldname === 'image') {
-        const allowedImageTypes = /jpeg|jpg|png|gif|webp/;
-        const mimetype = allowedImageTypes.test(file.mimetype);
-        const extname = allowedImageTypes.test(path.extname(file.originalname).toLowerCase());
-        
-        if (mimetype && extname) {
-          return cb(null, true); // Allow upload
-        }
-        return cb(new Error("Error: Only image files are allowed for location images."));
-    }
-    
-    else {
-      // For any other field, reject
-      console.log("Error: Unsupported field type")
-      return cb(new Error("Error: Unsupported field type."));
-    }
+// ------------------------------
+// Multer S3 Storage
+// ------------------------------
+const storage = multerS3({
+  s3,
+  bucket: process.env.AWS_BUCKET_NAME,
+  // acl: "public-read",
+  contentType: multerS3.AUTO_CONTENT_TYPE,
+  key: function (req, file, cb) {
+    const fileExtension = path.extname(file.originalname).toLowerCase();
+    let folder = "others";
+
+    if (file.fieldname === "photo") folder = "photos";
+    else if (file.fieldname === "license") folder = "licenses";
+    else if (file.fieldname === "video") folder = "videos";
+    else if (file.fieldname === "images") folder = "images";
+    else if (file.fieldname === "image") folder = "image";
+    else if (file.fieldname === "thumbnail") folder = "thumbnails"; // ⭐ ADDED FIX
+
+    const fileName = `${folder}/${Date.now()}-${Math.round(
+      Math.random() * 1e9
+    )}${fileExtension}`;
+
+    cb(null, fileName);
   },
 });
 
-export { upload };
+// ------------------------------
+// File Filter
+// ------------------------------
+const fileFilter = (req, file, cb) => {
+  console.log("File field:", file.fieldname);
+
+  // ---------------- IMAGE VALIDATION ----------------
+  const isImage =
+    allowedImageTypes.test(file.mimetype) &&
+    allowedImageTypes.test(path.extname(file.originalname).toLowerCase());
+
+  // ---------------- VIDEO VALIDATION ----------------
+  const isVideo =
+    allowedVideoTypes.test(file.mimetype) &&
+    allowedVideoTypes.test(path.extname(file.originalname).toLowerCase());
+
+  // PHOTO
+  if (file.fieldname === "photo") {
+    return isImage
+      ? cb(null, true)
+      : cb(new Error("Only image files allowed for photo."));
+  }
+
+  // LICENSE
+  if (file.fieldname === "license") {
+    return isImage
+      ? cb(null, true)
+      : cb(new Error("Only image files allowed for license."));
+  }
+
+  // VIDEO
+  if (file.fieldname === "video") {
+    return isVideo
+      ? cb(null, true)
+      : cb(new Error("Only video files allowed for video."));
+  }
+
+  // MULTIPLE IMAGES
+  if (file.fieldname === "images") {
+    return isImage
+      ? cb(null, true)
+      : cb(new Error("Only image files allowed for gallery images."));
+  }
+
+  // GENERAL IMAGE (if used)
+  if (file.fieldname === "image") {
+    return isImage
+      ? cb(null, true)
+      : cb(new Error("Only image files allowed for image."));
+  }
+
+  // ⭐ BLOG THUMBNAIL (MAIN FIX)
+  if (file.fieldname === "thumbnail") {
+    return isImage
+      ? cb(null, true)
+      : cb(new Error("Only image files allowed for blog thumbnail."));
+  }
+
+  // Unsupported field
+  console.log("Error: Unsupported field type:", file.fieldname);
+  return cb(new Error("Unsupported field type."));
+};
+
+// ------------------------------
+// Multer Export
+// ------------------------------
+export const upload = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+});

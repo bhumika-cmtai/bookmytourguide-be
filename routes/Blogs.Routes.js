@@ -7,49 +7,26 @@ import {
   updateBlog,
   deleteBlog,
 } from "../controllers/blog.controller.js";
+import { upload } from "../middleware/s3.uploads.js";
 
 const router = express.Router();
 
-/**
- * @route   GET /api/blogs
- * @desc    Get all blogs (supports pagination & search)
- * @access  Public
- */
+/** GET ALL */
 router.get("/", getAllBlogs);
 
-/**
- * @route   GET /api/blogs/:id
- * @desc    Get blog by ID
- * @access  Public
- */
-router.get("/:id", getBlogById);
-
-/**
- * @route   GET /api/blogs/slug/:slug
- * @desc    Get blog by slug
- * @access  Public
- */
+/** SLUG route ALWAYS before ID route */
 router.get("/slug/:slug", getBlogBySlug);
 
-/**
- * @route   POST /api/blogs
- * @desc    Create new blog
- * @access  Admin
- */
-router.post("/", createBlog);
+/** GET BY ID */
+router.get("/:id", getBlogById);
 
-/**
- * @route   PUT /api/blogs/:id
- * @desc    Update blog
- * @access  Admin
- */
-router.put("/:id", updateBlog);
+/** CREATE */
+router.post("/", upload.single("thumbnail"), createBlog);
 
-/**
- * @route   DELETE /api/blogs/:id
- * @desc    Delete blog
- * @access  Admin
- */
+/** UPDATE */
+router.put("/:id", upload.single("thumbnail"), updateBlog);
+
+/** DELETE */
 router.delete("/:id", deleteBlog);
 
 export default router;

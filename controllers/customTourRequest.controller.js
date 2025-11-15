@@ -1,6 +1,7 @@
 import CustomTourRequest from "../models/customTourRequest.model.js";
 import Location from "../models/Location.Model.js";
 import Language from "../models/Language.Model.js";
+import { sendEmail } from "../utils/sendEmail.js";
 
 export const getFormData = async (req, res) => {
   try {
@@ -23,7 +24,44 @@ export const createCustomTourRequest = async (req, res) => {
         .json({ success: false, message: "Not authorized" });
     }
     const newRequest = new CustomTourRequest({ ...req.body, userId });
-    const savedRequest = await newRequest.save();
+    let savedRequest = await newRequest.save();
+
+    // Populate the newly created request to get location and language names
+    savedRequest = await CustomTourRequest.findById(savedRequest._id)
+      .populate("selectedLocations", "placeName")
+      .populate("selectedLanguage", "languageName");
+
+    // Send email to admin
+    const adminEmail = process.env.EMAIL_USER; // Make sure to set this in your .env file
+    if (adminEmail) {
+      const subject = `New Custom Tour Request from ${savedRequest.fullName}`;
+      const htmlContent = `
+        <h2>New Custom Tour Request Details:</h2>
+        <p><strong>Full Name:</strong> ${savedRequest.fullName}</p>
+        <p><strong>Email:</strong> ${savedRequest.email}</p>
+        <p><strong>Phone:</strong> ${savedRequest.phone}</p>
+        <p><strong>Selected Locations:</strong> ${savedRequest.selectedLocations
+          .map((l) => l.placeName)
+          .join(", ")}</p>
+        <p><strong>Selected Language:</strong> ${
+          savedRequest.selectedLanguage.languageName
+        }</p>
+        <p><strong>Date Range:</strong> ${new Date(
+          savedRequest.dateRange.from
+        ).toLocaleDateString()} - ${new Date(
+        savedRequest.dateRange.to
+      ).toLocaleDateString()}</p>
+        <p><strong>Number of Travelers:</strong> ${savedRequest.numTravelers}</p>
+        <p><strong>Preferred Monuments:</strong> ${
+          savedRequest.preferredMonuments
+        }</p>
+        <p><strong>Needs Lunch:</strong> ${savedRequest.needsLunch}</p>
+        <p><strong>Needs Dinner:</strong> ${savedRequest.needsDinner}</p>
+        <p><strong>Needs Stay:</strong> ${savedRequest.needsStay}</p>
+      `;
+      await sendEmail(adminEmail, subject, htmlContent);
+    }
+
     res.status(201).json({
       success: true,
       message: "Request submitted successfully!",
@@ -36,6 +74,7 @@ export const createCustomTourRequest = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 export const getAllRequests = async (req, res) => {
   try {

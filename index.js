@@ -28,7 +28,6 @@ import { scheduleTourGuideReminders } from "./utils/tourGuidePaymentReminder.js"
 import customTourRequestRoutes from "./routes/customTourRequest.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js"; 
 
-
 cron.schedule("0 10 * * *", () => {
   console.log("⏰ Running daily payment reminder check...");
   checkAndSendReminders();
