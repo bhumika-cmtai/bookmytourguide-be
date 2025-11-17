@@ -3,6 +3,7 @@ import TourGuideBooking from "../models/TourGuideBooking.Model.js";
 import User from "../models/Users.Model.js"; // Corrected model import path
 import Location from "../models/Location.Model.js"; 
 import Language from "../models/Language.Model.js"; 
+import Package from "../models/Package.Model.js"; 
 
 /**
  * @desc    Get the profile of the logged-in guide
@@ -193,6 +194,79 @@ export const getAllGuides = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/**
+ * @desc    Get available guides for a specific tour package and date range
+ * @route   GET /api/guides/for-tour
+ * @access  Public
+ */
+export const getAvailableGuidesForTour = async (req, res) => {
+  try {
+    const { tourId, startDate, endDate, language, page = 1, limit = 20 } = req.query;
+
+    if (!tourId || !startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required parameters: tourId, startDate, and endDate.",
+      });
+    }
+
+    const tour = await Package.findById(tourId).select('locations');
+
+    if (!tour) {
+      return res.status(404).json({ success: false, message: "Tour package not found." });
+    }
+
+    const filter = {
+      isApproved: true,
+      profileComplete: true,
+      isCertified: true,
+      serviceLocations: { $in: tour.locations },
+    };
+
+    const bookingStart = new Date(startDate);
+    const bookingEnd = new Date(endDate);
+    
+    filter.unavailableDates = {
+      $not: {
+        $elemMatch: {
+          $gte: bookingStart,
+          $lte: bookingEnd,
+        },
+      },
+    };
+
+    if (language && language !== 'all') {
+      filter.languages = { $regex: new RegExp(`^${language}$`, "i") };
+    }
+
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const guides = await Guide.find(filter)
+      .populate("user", "name email role")
+      .sort({ createdAt: -1 })
+      .limit(limitNum)
+      .skip(skip);
+
+    const total = await Guide.countDocuments(filter);
+
+    res.status(200).json({
+      success: true,
+      count: guides.length,
+      total,
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum),
+      data: guides,
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
 
 export const adminGetAllGuides = async (req, res) => {
   try {

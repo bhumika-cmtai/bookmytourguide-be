@@ -9,7 +9,8 @@ import {
   getGuidePricingDetails,
   adminGetAllGuides,
   getMyBookings,
-  getMyBookingById 
+  getMyBookingById ,
+  getAvailableGuidesForTour
 } from "../controllers/guide.controller.js";
 import { protect, authorize } from "../middleware/authMiddleware.js"; // Assuming you have these
 import { upload } from "../middleware/s3.uploads.js"; // Correct path to your s3 uploader
@@ -37,6 +38,9 @@ router.put(
   protect, // Only the logged-in guide can access
   updateGuideAvailability
 );
+
+router.get('/for-tour', getAvailableGuidesForTour);
+
 
 router.patch(
   "/:id/approve",       // Matches the URL from the frontend
