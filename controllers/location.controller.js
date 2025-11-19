@@ -27,12 +27,29 @@ const getS3KeyFromUrl = (url) => {
 // @access  Private/Admin
 export const createLocation = async (req, res) => {
   try {
-    const locationData = { ...req.body };
+    const { placeName, description, pricing } = req.body;
+
+    // ✅ MODIFIED: Build the location data object with the simplified pricing structure.
+    const locationData = {
+      placeName,
+      description,
+      pricing: {
+        smallGroup: {
+          price: pricing.smallGroup.price,
+        },
+        mediumGroup: {
+          price: pricing.mediumGroup.price,
+        },
+        largeGroup: {
+          price: pricing.largeGroup.price,
+        }
+      }
+    };
 
     if (req.file) {
       locationData.image = req.file.location; // S3 URL
     } else {
-        return res.status(400).json({ success: false, message: "Image is required." });
+      return res.status(400).json({ success: false, message: "Image is required." });
     }
 
     const location = await Location.create(locationData);
@@ -45,6 +62,7 @@ export const createLocation = async (req, res) => {
     res.status(400).json({ success: false, message: error.message });
   }
 };
+
 
 
 // @desc    Get all locations
@@ -83,27 +101,42 @@ export const getLocationById = async (req, res) => {
 // @access  Private/Admin
 export const updateLocation = async (req, res) => {
   try {
-    const updateData = { ...req.body };
+    const { placeName, description, pricing } = req.body;
+    const updateData = { placeName, description };
+
+    // ✅ MODIFIED: If pricing data is provided, structure it for the simplified schema.
+    if (pricing) {
+        updateData.pricing = {
+          smallGroup: {
+            price: pricing.smallGroup.price,
+          },
+          mediumGroup: {
+            price: pricing.mediumGroup.price,
+          },
+          largeGroup: {
+            price: pricing.largeGroup.price,
+          }
+        };
+    }
+
     const locationToUpdate = await Location.findById(req.params.id);
 
     if (!locationToUpdate) {
-        return res.status(404).json({ success: false, message: "Location not found" });
+      return res.status(404).json({ success: false, message: "Location not found" });
     }
-    
+
     // If a new image is uploaded
     if (req.file) {
       updateData.image = req.file.location; // Set the new S3 URL
 
-      // Delete the old image from S3
       if (locationToUpdate.image) {
         const oldKey = getS3KeyFromUrl(locationToUpdate.image);
         if (oldKey) {
-            // ✅ FIX: Use the correct AWS SDK v3 syntax for deletion
-            const deleteCommand = new DeleteObjectCommand({
-              Bucket: process.env.AWS_BUCKET_NAME,
-              Key: oldKey,
-            });
-            await s3.send(deleteCommand);
+          const deleteCommand = new DeleteObjectCommand({
+            Bucket: process.env.AWS_BUCKET_NAME,
+            Key: oldKey,
+          });
+          await s3.send(deleteCommand);
         }
       }
     }
@@ -112,7 +145,7 @@ export const updateLocation = async (req, res) => {
       new: true,
       runValidators: true,
     });
-    
+
     res.status(200).json({
       success: true,
       message: "Location updated successfully",
@@ -122,6 +155,7 @@ export const updateLocation = async (req, res) => {
     res.status(400).json({ success: false, message: error.message });
   }
 };
+
 
 // @desc    Delete a location
 // @route   DELETE /api/locations/:id

@@ -18,9 +18,16 @@ const locationSchema = new mongoose.Schema(
       type: String,
       required: [true, "Image URL is required"],
     },
-    pricePerPerson: {
-      type: Number,
-      required: [true, "Price per person is required"],
+    pricing: {
+      smallGroup: {
+        price: { type: Number}
+      },
+      mediumGroup: {
+        price: { type: Number }
+      },
+      largeGroup: {
+        price: { type: Number }
+      }
     },
     isActive: {
       type: Boolean,

@@ -442,35 +442,31 @@ export const getGuideById = async (req, res) => {
 
 export const getGuidePricingDetails = async (req, res) => {
   try {
-    const { id } = req.params;
-
-    // 1. Find the guide to get their list of services
-    const guide = await Guide.findById(id).select('serviceLocations languages');
+    const guide = await Guide.findById(req.params.id);
 
     if (!guide) {
-      return res.status(404).json({ success: false, message: "Guide not found." });
+      return res.status(404).json({ success: false, message: "Guide not found" });
     }
 
-    // 2. Fetch the full location documents based on the names in the guide's profile
-    const locations = await Location.find({
-      placeName: { $in: guide.serviceLocations }
-    }).select('placeName pricePerPerson'); // Only select the fields we need
+    // The Guide model stores location and language NAMES (strings),
+    // so we must query the Location and Language collections by those names.
+    const [locations, languages] = await Promise.all([
+      Location.find({ 
+        'placeName': { $in: guide.serviceLocations } // <-- FIX: Query by 'placeName' instead of '_id'
+      }).select('placeName pricing'),
+      
+      Language.find({ 
+        'languageName': { $in: guide.languages } // <-- FIX: Query by 'languageName' instead of '_id'
+      }).select('languageName pricing')
+    ]);
 
-    // 3. Fetch the full language documents based on the names
-    const languages = await Language.find({
-      languageName: { $in: guide.languages }
-    }).select('languageName extraCharge'); // Only select the fields we need
-
-    // 4. Return the fetched details
     res.status(200).json({
       success: true,
-      data: {
-        locations,
-        languages,
-      },
+      data: { locations, languages },
     });
 
   } catch (error) {
+    console.error("Error fetching pricing details:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

@@ -9,10 +9,15 @@ const languageSchema = new mongoose.Schema(
       trim: true,
       unique: true,
     },
-    extraCharge: {
-      type: Number,
-      required: [true, "Extra charge is required"],
-      default: 0,
+    pricing: {
+      // Price for 1-14 Persons
+      standardGroup: {
+        price: { type: Number}
+      },
+      // Price for 15 Persons Onwards
+      largeGroup: {
+        price: { type: Number}
+      }
     },
   },
   {
