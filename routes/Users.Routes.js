@@ -10,6 +10,7 @@ import {
   deleteUser,
   adminApproveGuide,
   listGuides,
+  search,
 } from "../controllers/user.controller.js";
 import { authorize, protect } from "../middleware/authMiddleware.js";
 import { upload } from "../middleware/s3.uploads.js";
@@ -22,6 +23,12 @@ const router = express.Router();
  * @access  Protected (admin only)
  */
 router.get("/", protect, authorize("admin"), getAllUsers);
+/**
+ * @route   GET /api/users/search
+ * @desc    Search packages and locations
+ * @access  Public
+ */
+router.get("/search", search);
 
 /**
  * @route   GET /api/users/me

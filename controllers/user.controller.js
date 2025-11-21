@@ -1,6 +1,8 @@
 import User from "../models/Users.Model.js";
 import bcrypt from "bcrypt";
 import Guide from "../models/Guides.Model.js";
+import Package from "../models/Package.Model.js";
+import Location from "../models/Location.Model.js";
 
 // ===== PUBLIC USER ACTIONS =====
 
@@ -8,6 +10,49 @@ import Guide from "../models/Guides.Model.js";
  * Update own profile (users and guides can update their own data)
  * Cannot change: email, role, isActive (admin-only fields)
  */
+
+export const search = async (req, res) => {
+  try {
+    const { query } = req.query;
+
+    if (!query) {
+      return res.status(400).json({
+        success: false,
+        message: "Search query is required",
+      });
+    }
+
+    const searchRegex = new RegExp(query, "i");
+
+    const packages = await Package.find({
+      $or: [
+        { title: searchRegex },
+        { description: searchRegex },
+        { "locations": searchRegex },
+      ],
+      isActive: true,
+    }).select("title description price images _id");
+
+    const locations = await Location.find({
+      $or: [
+        { placeName: searchRegex },
+        { description: searchRegex },
+      ],
+      isActive: true,
+    }).select("placeName description image _id");
+
+    res.status(200).json({
+      success: true,
+      data: {
+        packages,
+        locations,
+      },
+    });
+  } catch (error) {
+    console.error("Search error:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
 
 export const updateOwnProfile = async (req, res) => {
   try {
