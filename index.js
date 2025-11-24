@@ -26,7 +26,7 @@ import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
 
 import { scheduleTourGuideReminders } from "./utils/tourGuidePaymentReminder.js";
 import customTourRequestRoutes from "./routes/customTourRequest.routes.js";
-import dashboardRoutes from "./routes/dashboard.routes.js"; 
+import dashboardRoutes from "./routes/dashboard.routes.js";
 
 cron.schedule("0 10 * * *", () => {
   console.log("⏰ Running daily payment reminder check...");
@@ -55,7 +55,10 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // Database connection
-const uri = process.env.MONOGO_URI;
+const uri = process.env.MONGO_URI || process.env.MONOGO_URI;
+if (!uri) {
+  console.error("❌ MONGO_URI is missing in environment variables!");
+}
 connectDB(uri);
 
 // Default route
